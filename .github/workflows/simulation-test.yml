@@ -33,10 +33,7 @@ jobs:
         sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
         sudo apt-get update
-        sudo apt-get install -y ros-humble-desktop python3-colcon-common-extensions
-        
-        # ROS 2環境の設定
-        echo "source /opt/ros/humble/setup.sh" >> $GITHUB_ENV
+        sudo apt-get install -y ros-humble-ros-base python3-colcon-common-extensions
     
     - name: Install system dependencies
       run: |
@@ -71,6 +68,7 @@ jobs:
     - name: Test build artifacts
       run: |
         cd ~/sim_ws
+        source /opt/ros/humble/setup.sh
         source install/setup.sh
         
         # エントリーポイントの確認
@@ -100,7 +98,7 @@ jobs:
         sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
         sudo apt-get update
-        sudo apt-get install -y ros-humble-desktop python3-colcon-common-extensions
+        sudo apt-get install -y ros-humble-ros-base python3-colcon-common-extensions
     
     - name: Install dependencies
       run: |
@@ -172,7 +170,7 @@ jobs:
         sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
         echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(. /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
         sudo apt-get update
-        sudo apt-get install -y ros-humble-desktop python3-colcon-common-extensions
+        sudo apt-get install -y ros-humble-ros-base python3-colcon-common-extensions
     
     - name: Install dependencies
       run: |
@@ -193,6 +191,7 @@ jobs:
     - name: Test simulation startup
       run: |
         cd ~/sim_ws
+        source /opt/ros/humble/setup.sh
         source install/setup.sh
         
         # バックグラウンドでシミュレーターを起動
