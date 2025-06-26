@@ -227,16 +227,85 @@ jobs:
         cd src/manual_control
         source /opt/ros/humble/setup.sh
         source install/setup.sh
+        
+        # launchファイルの構文チェック
         python3 -c "
         import sys
-        sys.path.append('launch')
+        import os
+        from pathlib import Path
+        
+        # launchディレクトリのパスを追加
+        launch_dir = Path('launch')
+        sys.path.insert(0, str(launch_dir))
+        
+        print(f'Launch directory: {launch_dir.absolute()}')
+        print(f'Launch files: {list(launch_dir.glob(\"*.py\"))}')
         
         try:
-            from simple_demo import generate_launch_description
-            ld = generate_launch_description()
-            print('✅ Launch file syntax is valid')
+            # 正しいファイル名でインポート
+            import simple_demo_launch
+            print('✅ Launch file import successful')
+            
+            # generate_launch_description関数の存在確認
+            if hasattr(simple_demo_launch, 'generate_launch_description'):
+                ld = simple_demo_launch.generate_launch_description()
+                print('✅ Launch description generated successfully')
+                print(f'Launch description type: {type(ld)}')
+            else:
+                print('❌ generate_launch_description function not found')
+                print(f'Available attributes: {dir(simple_demo_launch)}')
+                sys.exit(1)
+                
+        except ImportError as e:
+            print(f'❌ Import error: {e}')
+            print(f'Python path: {sys.path}')
+            print(f'Current working directory: {os.getcwd()}')
+            sys.exit(1)
         except Exception as e:
             print(f'❌ Launch file error: {e}')
+            import traceback
+            traceback.print_exc()
+            sys.exit(1)
+        "
+    
+    - name: Test launch file with ROS 2 launch system
+      run: |
+        cd src/manual_control
+        source /opt/ros/humble/setup.sh
+        source install/setup.sh
+        
+        # ROS 2 launchシステムを使用したテスト
+        python3 -c "
+        import sys
+        import os
+        from launch import LaunchService
+        from launch.actions import IncludeLaunchDescription
+        from launch.launch_description_sources import PythonLaunchDescriptionSource
+        from ament_index_python.packages import get_package_share_directory
+        
+        try:
+            # パッケージのshareディレクトリを取得
+            pkg_share = get_package_share_directory('manual_control')
+            launch_file = os.path.join(pkg_share, 'launch', 'simple_demo_launch.py')
+            
+            print(f'Launch file path: {launch_file}')
+            
+            # launchファイルの存在確認
+            if not os.path.exists(launch_file):
+                print(f'❌ Launch file not found: {launch_file}')
+                sys.exit(1)
+            
+            # launchファイルを読み込み
+            launch_description = IncludeLaunchDescription(
+                PythonLaunchDescriptionSource([launch_file])
+            )
+            
+            print('✅ Launch file loaded successfully with ROS 2 launch system')
+            
+        except Exception as e:
+            print(f'❌ ROS 2 launch system error: {e}')
+            import traceback
+            traceback.print_exc()
             sys.exit(1)
         "
 
