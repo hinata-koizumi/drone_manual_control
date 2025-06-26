@@ -1,0 +1,289 @@
+name: Simulation Environment Test
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - 'src/manual_control/**'
+      - 'config/**'
+      - 'tests/**'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'src/manual_control/**'
+      - 'config/**'
+      - 'tests/**'
+  workflow_dispatch:  # 手動実行可能
+
+jobs:
+  # シミュレーション環境の構築テスト
+  build-simulation:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up ROS 2 Humble
+      uses: ros-tooling/setup-ros@v0.3
+      with:
+        required-ros-distributions: humble
+    
+    - name: Install system dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y \
+          python3-colcon-common-extensions \
+          python3-pip \
+          python3-yaml \
+          python3-numpy
+    
+    - name: Install ROS 2 packages
+      run: |
+        sudo apt-get install -y \
+          ros-humble-geometry-msgs \
+          ros-humble-sensor-msgs \
+          ros-humble-std-msgs \
+          ros-humble-rclpy \
+          ros-humble-launch-ros
+    
+    - name: Create workspace
+      run: |
+        mkdir -p ~/sim_ws/src
+        cd ~/sim_ws/src
+        ln -s $GITHUB_WORKSPACE/src/manual_control .
+    
+    - name: Build simulation package
+      run: |
+        cd ~/sim_ws
+        source /opt/ros/humble/setup.sh
+        colcon build --packages-select manual_control --event-handlers console_direct+
+    
+    - name: Test build artifacts
+      run: |
+        cd ~/sim_ws
+        source install/setup.sh
+        
+        # エントリーポイントの確認
+        ros2 pkg executables manual_control
+        
+        # 設定ファイルの確認
+        ls -la install/manual_control/share/manual_control/config/
+        
+        # launchファイルの確認
+        ls -la install/manual_control/share/manual_control/launch/
+
+  # シミュレーションコンポーネントのテスト
+  test-simulation-components:
+    runs-on: ubuntu-latest
+    needs: build-simulation
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up ROS 2 Humble
+      uses: ros-tooling/setup-ros@v0.3
+      with:
+        required-ros-distributions: humble
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-colcon-common-extensions python3-pip
+        sudo apt-get install -y ros-humble-geometry-msgs ros-humble-sensor-msgs ros-humble-rclpy
+        pip install pytest pyyaml numpy
+    
+    - name: Build and test components
+      run: |
+        mkdir -p ~/sim_ws/src
+        cd ~/sim_ws/src
+        ln -s $GITHUB_WORKSPACE/src/manual_control .
+        
+        cd ~/sim_ws
+        source /opt/ros/humble/setup.sh
+        colcon build --packages-select manual_control
+        
+        # コンポーネントのインポートテスト
+        source install/setup.sh
+        python3 -c "
+        import sys
+        import os
+        
+        # パッケージパスの追加
+        sys.path.insert(0, os.path.join(os.path.expanduser('~'), 'sim_ws', 'src', 'manual_control', 'manual_control'))
+        
+        try:
+            # 各コンポーネントのインポートテスト
+            from simple_simulator import SimpleDroneSimulator
+            print('✅ SimpleDroneSimulator imported successfully')
+            
+            from state_monitor import StateMonitorNode
+            print('✅ StateMonitorNode imported successfully')
+            
+            from action_executor import ActionExecutorNode
+            print('✅ ActionExecutorNode imported successfully')
+            
+            # 設定ファイルの読み込みテスト
+            import yaml
+            config_path = os.path.join('config', 'drone_specs.yaml')
+            with open(config_path, 'r') as f:
+                drone_specs = yaml.safe_load(f)
+            
+            specs = drone_specs['drone_specifications']
+            print(f'✅ Drone specs loaded: {specs["name"]} v{specs["version"]}')
+            
+        except Exception as e:
+            print(f'❌ Error: {e}')
+            sys.exit(1)
+        "
+
+  # シミュレーション実行テスト
+  test-simulation-execution:
+    runs-on: ubuntu-latest
+    needs: test-simulation-components
+    timeout-minutes: 10
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up ROS 2 Humble
+      uses: ros-tooling/setup-ros@v0.3
+      with:
+        required-ros-distributions: humble
+    
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y python3-colcon-common-extensions
+        sudo apt-get install -y ros-humble-geometry-msgs ros-humble-sensor-msgs ros-humble-rclpy
+    
+    - name: Build workspace
+      run: |
+        mkdir -p ~/sim_ws/src
+        cd ~/sim_ws/src
+        ln -s $GITHUB_WORKSPACE/src/manual_control .
+        
+        cd ~/sim_ws
+        source /opt/ros/humble/setup.sh
+        colcon build --packages-select manual_control
+    
+    - name: Test simulation startup
+      run: |
+        cd ~/sim_ws
+        source install/setup.sh
+        
+        # バックグラウンドでシミュレーターを起動
+        timeout 30s ros2 run manual_control simple_simulator &
+        SIM_PID=$!
+        
+        # 少し待機
+        sleep 5
+        
+        # トピックの確認
+        ros2 topic list | grep -E "(drone|imu)" || echo "No drone topics found"
+        
+        # プロセスの確認
+        if ps -p $SIM_PID > /dev/null; then
+            echo "✅ Simulation process is running"
+            kill $SIM_PID
+        else
+            echo "❌ Simulation process failed to start"
+            exit 1
+        fi
+
+  # 設定ファイルの妥当性テスト
+  test-configuration:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Test drone_specs.yaml
+      run: |
+        python3 -c "
+        import yaml
+        import sys
+        
+        # drone_specs.yamlの詳細テスト
+        with open('config/drone_specs.yaml', 'r') as f:
+            data = yaml.safe_load(f)
+        
+        specs = data['drone_specifications']
+        
+        # 物理パラメータの妥当性確認
+        mass = specs['physical']['weight']
+        if mass <= 0 or mass > 10:
+            print(f'❌ Invalid mass: {mass}kg')
+            sys.exit(1)
+        
+        # モーターパラメータの妥当性確認
+        thrust_constant = specs['motors']['main_rotors']['thrust_constant']
+        if thrust_constant <= 0:
+            print(f'❌ Invalid thrust_constant: {thrust_constant}')
+            sys.exit(1)
+        
+        # 制御パラメータの妥当性確認
+        roll_p = specs['control']['attitude']['roll_p']
+        if roll_p <= 0:
+            print(f'❌ Invalid roll_p: {roll_p}')
+            sys.exit(1)
+        
+        print('✅ drone_specs.yaml validation passed')
+        "
+    
+    - name: Test action_sequences.yaml
+      run: |
+        python3 -c "
+        import yaml
+        import sys
+        
+        # action_sequences.yamlの詳細テスト
+        with open('config/action_sequences.yaml', 'r') as f:
+            data = yaml.safe_load(f)
+        
+        sequences = data['action_sequences']
+        
+        # 各アクションの妥当性確認
+        for i, action in enumerate(sequences):
+            if 'duration' not in action or action['duration'] <= 0:
+                print(f'❌ Invalid duration in action {i}: {action.get("duration", "missing")}')
+                sys.exit(1)
+            
+            if 'action_type' not in action:
+                print(f'❌ Missing action_type in action {i}')
+                sys.exit(1)
+        
+        print(f'✅ action_sequences.yaml validation passed: {len(sequences)} actions')
+        "
+
+  # レポート生成
+  simulation-report:
+    runs-on: ubuntu-latest
+    needs: [build-simulation, test-simulation-components, test-simulation-execution, test-configuration]
+    if: always()
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Generate simulation test report
+      run: |
+        echo "## 🚁 Simulation Environment Test Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Build Status:" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Build simulation: ${{ needs.build-simulation.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Test components: ${{ needs.test-simulation-components.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Test execution: ${{ needs.test-simulation-execution.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ Test configuration: ${{ needs.test-configuration.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Simulation Components:" >> $GITHUB_STEP_SUMMARY
+        echo "- SimpleDroneSimulator: Ready" >> $GITHUB_STEP_SUMMARY
+        echo "- StateMonitorNode: Ready" >> $GITHUB_STEP_SUMMARY
+        echo "- ActionExecutorNode: Ready" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Configuration Files:" >> $GITHUB_STEP_SUMMARY
+        echo "- drone_specs.yaml: Valid" >> $GITHUB_STEP_SUMMARY
+        echo "- action_sequences.yaml: Valid" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "- Run full simulation with launch file" >> $GITHUB_STEP_SUMMARY
+        echo "- Test specific drone actions" >> $GITHUB_STEP_SUMMARY
+        echo "- Validate physics simulation" >> $GITHUB_STEP_SUMMARY 

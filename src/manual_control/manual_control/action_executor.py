@@ -19,6 +19,7 @@ from geometry_msgs.msg import PoseStamped, TwistStamped
 from sensor_msgs.msg import Imu, MagneticField, FluidPressure
 
 from common.bridge_base import BridgeBase
+from ament_index_python.packages import get_package_share_directory
 
 
 class ActionType(Enum):
@@ -53,6 +54,7 @@ class ActionExecutorNode(BridgeBase):
             'control_topic': '/drone/control_command',
             'state_topic': '/drone/state',
             'action_sequence_file': 'action_sequences.yaml',
+            'drone_specs_file': 'drone_specs.yaml',
             'qos_depth': 10,
             'qos_reliability': 'reliable',
             'qos_history': 'keep_last',
@@ -71,6 +73,13 @@ class ActionExecutorNode(BridgeBase):
         
         # 行動シーケンス読み込み
         self.action_sequences = self._load_action_sequences()
+        
+        # 追加: ドローン仕様読み込み
+        self.drone_specs = self._load_drone_specs()
+        if self.drone_specs:
+            self.get_logger().info("Loaded drone_specs.yaml successfully")
+        else:
+            self.get_logger().warn("Failed to load drone_specs.yaml or file is empty")
         
         # 現在の状態
         self.current_action = None
@@ -137,6 +146,21 @@ class ActionExecutorNode(BridgeBase):
             
         except Exception as e:
             self.get_logger().error(f"Failed to load action sequences: {e}")
+            return {}
+    
+    def _load_drone_specs(self) -> dict:
+        """ドローン仕様ファイルを読み込み"""
+        specs_path = os.path.join(
+            get_package_share_directory('manual_control'),
+            'config',
+            self.get_parameter('drone_specs_file').value
+        )
+        try:
+            with open(specs_path, 'r') as f:
+                data = yaml.safe_load(f)
+            return data.get('drone_specifications', {})
+        except Exception as e:
+            self.get_logger().error(f"Failed to load drone_specs.yaml: {e}")
             return {}
     
     def start_action(self, action_name: str) -> bool:
