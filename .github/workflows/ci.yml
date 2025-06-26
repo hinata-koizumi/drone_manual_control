@@ -12,7 +12,7 @@ jobs:
     runs-on: ubuntu-22.04
     strategy:
       matrix:
-        python-version: [3.10]
+        python-version: [3.11]
     
     steps:
     - uses: actions/checkout@v4
@@ -21,9 +21,11 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
+        cache: 'pip'
     
     - name: Install dependencies
       run: |
+        python --version
         python -m pip install --upgrade pip
         pip install pytest pyyaml numpy
     
@@ -173,6 +175,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+        cache: 'pip'
+    
+    - name: Install test dependencies
+      run: |
+        python --version
+        python -m pip install --upgrade pip
+        pip install pytest pyyaml numpy
+    
     - name: Run integration tests
       run: |
         python -m pytest tests/test_integration.py -v
@@ -202,8 +216,14 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
+    - name: Set up Python 3.11
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
     - name: Generate test report
       run: |
+        python --version
         echo "## 🚁 Drone Manual Control CI Report" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Test Results:" >> $GITHUB_STEP_SUMMARY

@@ -1,8 +1,8 @@
-numpy>=1.21.0
-pyyaml>=6.0
-dataclasses>=0.6; python_version < "3.7"
-typing-extensions>=4.0.0
-pytest>=7.0.0
-pytest-cov>=4.0.0
-pytest-mock>=3.10.0
-pytest-timeout>=2.0.0 
+# Python 3.11+ compatible dependencies
+numpy>=1.21.0,<2.0.0
+pyyaml>=6.0,<7.0.0
+typing-extensions>=4.0.0,<5.0.0
+pytest>=7.0.0,<8.0.0
+pytest-cov>=4.0.0,<5.0.0
+pytest-mock>=3.10.0,<4.0.0
+pytest-timeout>=2.0.0,<3.0.0 
