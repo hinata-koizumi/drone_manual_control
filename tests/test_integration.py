@@ -34,16 +34,34 @@ class TestManualControlIntegration:
                 if result.returncode == 0:
                     print("✅ Package built successfully")
                     # ビルドされたパッケージのパスを追加
-                    install_dir = cls.package_dir / 'install' / 'manual_control' / 'lib' / 'python3.11' / 'site-packages'
+                    install_dir = cls.package_dir / 'install' / 'manual_control' / 'lib' / 'python3.10' / 'site-packages'
                     if install_dir.exists():
                         sys.path.insert(0, str(install_dir))
                         print(f"Added {install_dir} to Python path")
+                    else:
+                        # Python 3.11の場合も試す
+                        install_dir = cls.package_dir / 'install' / 'manual_control' / 'lib' / 'python3.11' / 'site-packages'
+                        if install_dir.exists():
+                            sys.path.insert(0, str(install_dir))
+                            print(f"Added {install_dir} to Python path")
+                        else:
+                            print("⚠️ Install directory not found, using direct import")
+                            # 直接パスを追加
+                            package_path = Path(__file__).parent.parent / 'src'
+                            sys.path.insert(0, str(package_path))
                 else:
                     print(f"⚠️ Package build failed: {result.stderr}")
+                    # ビルドが失敗した場合も直接パスを追加
+                    package_path = Path(__file__).parent.parent / 'src'
+                    sys.path.insert(0, str(package_path))
             except subprocess.TimeoutExpired:
                 print("⚠️ Package build timed out")
+                package_path = Path(__file__).parent.parent / 'src'
+                sys.path.insert(0, str(package_path))
             except Exception as e:
                 print(f"⚠️ Package build error: {e}")
+                package_path = Path(__file__).parent.parent / 'src'
+                sys.path.insert(0, str(package_path))
         else:
             print("⚠️ ROS 2 Humble not found, using direct import")
             # ROS 2がない場合は直接パスを追加

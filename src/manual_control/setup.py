@@ -8,7 +8,7 @@ setup(
     name=package_name,
     version='0.1.0',
     packages=[package_name],
-    python_requires='>=3.11',
+    python_requires='>=3.8',
     data_files=[
         ('share/ament_index/resource_index/packages',
             ['resource/' + package_name]),
@@ -18,7 +18,11 @@ setup(
         (os.path.join('share', package_name, 'launch'), 
          glob('launch/*.py') if os.path.exists('launch') else []),
     ],
-    install_requires=['setuptools'],
+    install_requires=[
+        'setuptools',
+        'pyyaml',
+        'numpy',
+    ],
     zip_safe=True,
     maintainer='drone_developer',
     maintainer_email='developer@example.com',

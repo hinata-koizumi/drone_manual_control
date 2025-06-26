@@ -185,18 +185,6 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     
-    - name: Set up Python 3.11
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.11'
-        cache: 'pip'
-    
-    - name: Install test dependencies
-      run: |
-        python --version
-        python -m pip install --upgrade pip
-        pip install pytest pyyaml numpy
-    
     - name: Set up ROS 2 Humble
       run: |
         # ROS 2 Humbleの手動セットアップ（GPGキーの問題を回避）
@@ -213,6 +201,12 @@ jobs:
       run: |
         sudo apt-get install -y ros-humble-geometry-msgs ros-humble-sensor-msgs
     
+    - name: Install Python dependencies for ROS 2
+      run: |
+        # ROS 2環境でPython依存関係をインストール
+        source /opt/ros/humble/setup.sh
+        pip3 install --user pytest pyyaml numpy lark
+    
     - name: Build ROS 2 package
       run: |
         cd src/manual_control
@@ -225,7 +219,8 @@ jobs:
         cd src/manual_control
         source install/setup.sh
         cd ../..
-        python -m pytest tests/test_integration.py -v
+        # ROS 2環境でpytestを実行
+        python3 -m pytest tests/test_integration.py -v
     
     - name: Test launch file syntax
       run: |
