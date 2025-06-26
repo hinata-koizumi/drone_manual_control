@@ -200,8 +200,16 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        try:
+            node.destroy_node()
+            executor.shutdown()
+        except Exception as e:
+            print(f"Warning: Error during cleanup: {e}")
+        
+        try:
+            rclpy.shutdown()
+        except Exception as e:
+            print(f"Warning: Error during rclpy shutdown: {e}")
 
 
 if __name__ == '__main__':

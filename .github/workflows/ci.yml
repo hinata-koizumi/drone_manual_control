@@ -246,6 +246,19 @@ jobs:
         ros2 pkg list | grep manual_control || echo "Package not found in ros2 pkg list"
         ros2 pkg prefix manual_control || echo "Package prefix not found"
         
+        # 直接実行のテスト
+        echo "Testing direct execution..."
+        timeout 5s install/manual_control/bin/simple_simulator &
+        TEST_PID=$!
+        sleep 2
+        
+        if ps -p $TEST_PID > /dev/null; then
+            echo "✅ Direct execution test passed"
+            kill $TEST_PID
+        else
+            echo "⚠️ Direct execution test failed, but continuing with integration tests"
+        fi
+        
         cd ../..
         # ROS 2環境でpytestを実行
         python3 -m pytest tests/test_integration.py -v

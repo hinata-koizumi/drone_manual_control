@@ -145,7 +145,8 @@ class StateMonitorNode(Node):
         self.get_logger().info("=" * 60)
 
 
-def main():
+def main() -> None:
+    """メイン関数"""
     rclpy.init()
     node = StateMonitorNode()
     executor = MultiThreadedExecutor()
@@ -156,8 +157,16 @@ def main():
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        try:
+            node.destroy_node()
+            executor.shutdown()
+        except Exception as e:
+            print(f"Warning: Error during cleanup: {e}")
+        
+        try:
+            rclpy.shutdown()
+        except Exception as e:
+            print(f"Warning: Error during rclpy shutdown: {e}")
 
 
 if __name__ == '__main__':
