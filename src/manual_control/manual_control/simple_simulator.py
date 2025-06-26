@@ -7,9 +7,9 @@ from rclpy.executors import MultiThreadedExecutor
 import numpy as np
 import time
 
-from drone_msgs.msg import DroneControlCommand
 from geometry_msgs.msg import PoseStamped, TwistStamped
 from sensor_msgs.msg import Imu
+from std_msgs.msg import Header
 
 
 class SimpleDroneSimulator(Node):
@@ -57,7 +57,7 @@ class SimpleDroneSimulator(Node):
         """通信設定"""
         # 制御コマンドサブスクライバー
         self.control_sub = self.create_subscription(
-            DroneControlCommand,
+            TwistStamped,
             '/drone/control_command',
             self._control_callback,
             self.qos_profile
@@ -84,23 +84,26 @@ class SimpleDroneSimulator(Node):
             self.qos_profile
         )
     
-    def _control_callback(self, msg: DroneControlCommand):
+    def _control_callback(self, msg: TwistStamped):
         """制御コマンドコールバック"""
         # 推力と角度コマンドを処理
-        throttle = (msg.throttle1 + msg.throttle2) / 2.0
-        roll_cmd = msg.angle1
-        pitch_cmd = msg.angle2
+        throttle = msg.twist.linear.z  # Z方向の線形速度を推力として使用
+        roll_cmd = msg.twist.angular.x
+        pitch_cmd = msg.twist.angular.y
+        yaw_cmd = msg.twist.angular.z
         
         # 推力計算 (0.0-1.0 -> 0.0-max_thrust)
-        thrust = throttle * self.max_thrust
+        thrust = abs(throttle) * self.max_thrust
         
         # 角度制御 (簡易的なPID制御)
         roll_error = roll_cmd - self.orientation[0]
         pitch_error = pitch_cmd - self.orientation[1]
+        yaw_error = yaw_cmd - self.orientation[2]
         
         # 角速度更新
         self.angular_velocity[0] = self.roll_p * roll_error
         self.angular_velocity[1] = self.pitch_p * pitch_error
+        self.angular_velocity[2] = self.yaw_p * yaw_error
         
         # 推力ベクトル計算
         thrust_vector = np.array([
