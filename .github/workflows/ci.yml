@@ -80,7 +80,7 @@ jobs:
     - name: Test Docker image
       run: |
         # Dockerイメージが正常にビルドされるかテスト
-        docker run --rm drone-manual-control:test python -c "
+        docker run --rm drone-manual-control:test python3 -c "
         import sys
         print('✅ Docker image test passed')
         sys.exit(0)

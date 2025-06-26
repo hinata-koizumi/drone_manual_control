@@ -28,7 +28,6 @@ setup(
     entry_points={
         'console_scripts': [
             'action_executor = manual_control.action_executor:main',
-            'action_controller = manual_control.action_controller:main',
             'simple_simulator = manual_control.simple_simulator:main',
             'state_monitor = manual_control.state_monitor:main',
         ],

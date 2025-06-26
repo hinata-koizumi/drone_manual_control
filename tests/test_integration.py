@@ -118,9 +118,9 @@ class TestManualControlIntegration:
         # 依存関係の確認
         required_deps = [
             'rclpy',
-            'drone_msgs',
-            'px4_msgs',
-            'common'
+            'std_msgs',
+            'geometry_msgs',
+            'sensor_msgs'
         ]
         for dep in required_deps:
             assert f'<depend>{dep}</depend>' in content
@@ -161,6 +161,8 @@ class TestManualControlIntegration:
             assert ActionType.MANUAL.value == "manual"
             
         except ImportError as e:
+            # インポートエラーが発生した場合は詳細をログに出力
+            print(f"Import error details: {e}")
             pytest.fail(f"Failed to import action_executor module: {e}")
         finally:
             # パスを元に戻す
