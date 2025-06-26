@@ -213,7 +213,20 @@ jobs:
         
         cd ~/sim_ws
         source /opt/ros/humble/setup.sh
-        colcon build --packages-select manual_control
+        
+        # 詳細なビルド情報を表示
+        echo "Building package with verbose output..."
+        colcon build --packages-select manual_control --event-handlers console_direct+ --cmake-args -DCMAKE_BUILD_TYPE=Debug
+        
+        # ビルド結果の確認
+        echo "Build completed. Checking results..."
+        ls -la build/manual_control/ || echo "No build directory found"
+        ls -la install/manual_control/ || echo "No install directory found"
+        
+        # エントリーポイントスクリプトの確認
+        echo "Checking entry point scripts..."
+        find install/ -name "simple_simulator" -type f || echo "No simple_simulator executable found"
+        find install/ -name "*simple_simulator*" -type f || echo "No simple_simulator files found"
     
     - name: Test simulation startup
       run: |
@@ -221,7 +234,21 @@ jobs:
         source /opt/ros/humble/setup.sh
         source install/setup.sh
         
+        # エントリーポイントの確認
+        echo "Checking available executables..."
+        ros2 pkg executables manual_control
+        
+        # ビルド成果物の確認
+        echo "Checking build artifacts..."
+        ls -la install/manual_control/lib/manual_control/ || echo "No lib directory found"
+        ls -la install/manual_control/bin/ || echo "No bin directory found"
+        
+        # パッケージの詳細確認
+        echo "Checking package details..."
+        ros2 pkg xml manual_control
+        
         # バックグラウンドでシミュレーターを起動
+        echo "Starting simulation..."
         timeout 30s ros2 run manual_control simple_simulator &
         SIM_PID=$!
         
@@ -229,6 +256,7 @@ jobs:
         sleep 5
         
         # トピックの確認
+        echo "Checking topics..."
         ros2 topic list | grep -E "(drone|imu)" || echo "No drone topics found"
         
         # プロセスの確認
@@ -237,6 +265,9 @@ jobs:
             kill $SIM_PID
         else
             echo "❌ Simulation process failed to start"
+            echo "Checking for errors..."
+            # エラーログの確認
+            ls -la ~/sim_ws/log/ || echo "No log directory found"
             exit 1
         fi
 
