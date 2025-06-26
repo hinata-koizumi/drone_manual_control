@@ -206,10 +206,13 @@ def main():
         except Exception as e:
             print(f"Warning: Error during cleanup: {e}")
         
+        # rclpy.shutdown()は既に呼ばれている可能性があるため、try-exceptで囲む
         try:
-            rclpy.shutdown()
+            if rclpy.ok():
+                rclpy.shutdown()
         except Exception as e:
-            print(f"Warning: Error during rclpy shutdown: {e}")
+            # 既にシャットダウンされている場合は無視
+            pass
 
 
 if __name__ == '__main__':

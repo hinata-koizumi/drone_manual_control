@@ -312,15 +312,21 @@ class TestManualControlBuild:
         
         # エントリーポイントの確認
         assert 'action_executor = manual_control.action_executor:main' in content
+        assert 'simple_simulator = manual_control.simple_simulator:main' in content
+        assert 'state_monitor = manual_control.state_monitor:main' in content
         
-        # main関数の存在確認
-        action_executor_path = Path(__file__).parent.parent / 'src' / 'manual_control' / 'manual_control' / 'action_executor.py'
+        # 各ノードファイルのmain関数とif __name__の存在確認
+        node_files = ['action_executor.py', 'simple_simulator.py', 'state_monitor.py']
         
-        with open(action_executor_path, 'r') as f:
-            content = f.read()
-        
-        assert 'def main()' in content
-        assert 'if __name__ == "__main__":' in content
+        for node_file in node_files:
+            node_path = Path(__file__).parent.parent / 'src' / 'manual_control' / 'manual_control' / node_file
+            
+            with open(node_path, 'r') as f:
+                content = f.read()
+            
+            assert 'def main()' in content, f"main function not found in {node_file}"
+            # 両方のクォート形式に対応
+            assert ('if __name__ == "__main__":' in content or "if __name__ == '__main__':" in content), f"if __name__ == '__main__' not found in {node_file}"
 
 
 if __name__ == "__main__":

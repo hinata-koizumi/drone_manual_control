@@ -260,8 +260,8 @@ jobs:
         fi
         
         cd ../..
-        # ROS 2環境でpytestを実行
-        python3 -m pytest tests/test_integration.py -v
+        # ROS 2環境でpytestを実行（警告を抑制）
+        python3 -m pytest tests/test_integration.py -v --disable-warnings
     
     - name: Test launch file syntax
       run: |
