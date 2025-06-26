@@ -27,11 +27,11 @@ echo "=== Configuration files found ==="
 
 # 単体テスト実行
 echo "=== Running unit tests ==="
-python3 -m pytest tests/test_manual_control.py -v --tb=short
+PYTHONPATH=src python3 -m pytest tests/test_manual_control.py -v --tb=short
 
 # 統合テスト実行
 echo "=== Running integration tests ==="
-python3 -m pytest tests/test_integration.py -v --tb=short
+PYTHONPATH=src python3 -m pytest tests/test_integration.py -v --tb=short
 
 # パッケージ構造テスト
 echo "=== Testing package structure ==="
