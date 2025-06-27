@@ -1,0 +1,40 @@
+ARG GITHUB_REPOSITORY_OWNER=hinata-koizumi
+ARG BASE_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER}/drone-avoidance-base:2.0.1
+ARG BUILDKIT_INLINE_CACHE=1
+
+# ビルドステージ
+FROM ${BASE_IMAGE} AS builder
+
+USER root
+WORKDIR /msgs_ws
+COPY rosdep/rosdep-msgs.yaml rosdep/rosdep-msgs.yaml
+COPY src/drone_msgs src/drone_msgs
+
+RUN mkdir -p /etc/ros/rosdep/sources.list.d && \
+    echo "yaml file:///msgs_ws/rosdep/rosdep-msgs.yaml" > /etc/ros/rosdep/sources.list.d/10-local.yaml && \
+    . /opt/ros/humble/setup.sh && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y && \
+    colcon build --merge-install --packages-select drone_msgs --parallel-workers 1 && \
+    rm -rf build/ log/ /tmp/* /var/tmp/* /root/.cache/* /usr/share/doc/* /usr/share/man/* /var/lib/apt/lists/* && \
+    apt-get clean && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && \
+    find /usr -name "*.pyc" -delete && \
+    find /usr -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# ランタイムステージ
+FROM ${BASE_IMAGE} AS msgs_ws
+
+USER root
+WORKDIR /msgs_ws
+
+# ビルドステージからインストール済みファイルをコピー
+COPY --from=builder /msgs_ws/install /msgs_ws/install
+COPY --from=builder /etc/ros/rosdep/sources.list.d/10-local.yaml /etc/ros/rosdep/sources.list.d/10-local.yaml
+
+ENV OVERLAY_WS=/msgs_ws/install
+
+RUN if [ "$(dpkg --print-architecture)" != "amd64" ]; then \
+  echo "[WARN] This image is officially supported only on amd64. For arm64 or other architectures, additional validation and support are required."; \
+fi
+
+RUN rm -rf /tmp/* /var/tmp/* /root/.cache/* /usr/share/doc/* /usr/share/man/* /var/lib/apt/lists/* || true

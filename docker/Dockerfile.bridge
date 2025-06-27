@@ -1,0 +1,45 @@
+ARG GITHUB_REPOSITORY_OWNER=hinata-koizumi
+ARG BASE_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER}/drone-avoidance-base:2.0.1
+ARG BUILDKIT_INLINE_CACHE=1
+
+# ビルドステージ
+FROM ${BASE_IMAGE} AS builder
+
+USER root
+WORKDIR /bridge_ws
+
+COPY src/angle_bridge src/angle_bridge
+COPY src/command_bridge src/command_bridge
+COPY src/outer_motor_bridge src/outer_motor_bridge
+COPY src/state_bridge src/state_bridge
+COPY src/common src/common
+COPY src/drone_msgs src/drone_msgs
+COPY src/px4_msgs src/px4_msgs
+COPY config/ config/
+COPY rosdep/rosdep-bridge.yaml rosdep/rosdep-bridge.yaml
+
+RUN rm -rf build/ install/ log/ && \
+    mkdir -p /etc/ros/rosdep/sources.list.d && \
+    echo "yaml file:///bridge_ws/rosdep/rosdep-bridge.yaml" > /etc/ros/rosdep/sources.list.d/10-local.yaml && \
+    . /opt/ros/humble/setup.sh && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y && \
+    colcon build --merge-install --parallel-workers 1 && \
+    rm -rf /tmp/* /var/tmp/* /root/.cache/* /usr/share/doc/* /usr/share/man/* /var/lib/apt/lists/* && \
+    apt-get clean && apt-get autoremove -y && rm -rf /var/lib/apt/lists/* && \
+    find /usr -name "*.pyc" -delete && \
+    find /usr -name "__pycache__" -type d -exec rm -rf {} + 2>/dev/null || true
+
+# ランタイムステージ
+FROM ${BASE_IMAGE} AS runtime
+
+USER root
+WORKDIR /bridge_ws
+
+# ビルドステージからインストール済みファイルをコピー
+COPY --from=builder /bridge_ws/install /bridge_ws/install
+COPY --from=builder /etc/ros/rosdep/sources.list.d/10-local.yaml /etc/ros/rosdep/sources.list.d/10-local.yaml
+
+COPY docker/entrypoint-bridge.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

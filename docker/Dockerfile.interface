@@ -1,0 +1,21 @@
+FROM ros:humble-ros-base
+
+WORKDIR /workspace
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-colcon-common-extensions \
+    python3-rosdep \
+    && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/* /root/.cache/* \
+    && apt-get clean \
+    && apt-get autoremove -y
+
+COPY src/control_interface/ src/control_interface/
+COPY config/ config/
+
+RUN . /opt/ros/humble/setup.sh && \
+    rosdep update && \
+    rosdep install --from-paths src --ignore-src -r -y && \
+    colcon build --merge-install --packages-select control_interface --parallel-workers 1
+
+COPY docker/entrypoint-control-interface.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh 

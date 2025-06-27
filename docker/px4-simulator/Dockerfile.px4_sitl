@@ -1,0 +1,16 @@
+ARG GITHUB_REPOSITORY_OWNER=hinata-koizumi
+ARG BASE_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER}/drone-avoidance-base:2.0.1
+FROM ${BASE_IMAGE}
+
+WORKDIR /PX4-Autopilot
+
+COPY docker/px4-simulator/entrypoint-px4-sitl.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+RUN id px4user || (echo "px4user does not exist in base image!" && exit 1)
+USER px4user
+
+# PX4バイナリはベースイメージから利用
+# 必要に応じてPX4-Autopilotの設定や起動スクリプトのみ追加
+
+ENTRYPOINT ["/entrypoint.sh"] 

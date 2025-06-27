@@ -1,0 +1,33 @@
+{
+  "airframe_name": "QuadPlus_InnerProp_V1",
+  "mixers": [
+    { "controlGroup": 0, "controlIndex": 0, "value": 1.0 },
+    { "controlGroup": 0, "controlIndex": 1, "value": 1.0 },
+    { "controlGroup": 0, "controlIndex": 2, "value": 1.0 },
+    { "controlGroup": 0, "controlIndex": 3, "value": 1.0 },
+    { "controlGroup": 0, "controlIndex": 4, "value": 1.0 },
+    { "controlGroup": 0, "controlIndex": 5, "value": 1.0 },
+
+    { "controlGroup": 1, "controlIndex": 0, "value": 1.0 },
+    { "controlGroup": 1, "controlIndex": 1, "value": 1.0 }
+  ],
+
+  "parameters": {
+    "MC_ROLL_P": 6.0,
+    "MC_PITCH_P": 6.0,
+    "MC_YAW_P": 3.5,
+
+    "SERVO1_FUNCTION": 94,
+    "SERVO2_FUNCTION": 95,
+    "SERVO1_MIN": 900,
+    "SERVO1_MAX": 2100,
+    "SERVO2_MIN": 900,
+    "SERVO2_MAX": 2100,
+    "SERVO3_FUNCTION": 96,
+    "SERVO4_FUNCTION": 97,
+    "SERVO3_MIN": 900,
+    "SERVO3_MAX": 2100,
+    "SERVO4_MIN": 900,
+    "SERVO4_MAX": 2100
+  }
+}
