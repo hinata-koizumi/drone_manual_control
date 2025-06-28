@@ -216,6 +216,9 @@ class SimpleDroneSimulator(Node):
         elif self.is_hovering and (abs(msg.twist.linear.x) > 0.01 or abs(msg.twist.linear.y) > 0.01):
             # ホバリング中に水平移動コマンドが来た場合は、ホバリングを維持
             self.get_logger().info("Horizontal movement command received while hovering - maintaining hover mode")
+        elif self.is_hovering and abs(msg.twist.angular.z) > 0.01:
+            # ホバリング中に回転コマンドが来た場合は、ホバリングを維持
+            self.get_logger().info("Rotation command received while hovering - maintaining hover mode")
         else:
             # 通常の制御コマンド（ホバリング以外）
             self.is_hovering = False
@@ -241,6 +244,11 @@ class SimpleDroneSimulator(Node):
         if abs(self.horizontal_velocity_x) > 0.01 or abs(self.horizontal_velocity_y) > 0.01:
             hover_status = "while hovering" if self.is_hovering else "in normal mode"
             self.get_logger().info(f"Horizontal movement command: X={self.horizontal_velocity_x:.2f}, Y={self.horizontal_velocity_y:.2f} ({hover_status})")
+        
+        # 回転コマンドの特別なログ
+        if abs(self.control_command[3]) > 0.01:  # yaw command
+            hover_status = "while hovering" if self.is_hovering else "in normal mode"
+            self.get_logger().info(f"Rotation command: Yaw={self.control_command[3]:.2f} ({hover_status})")
     
     def _simulation_step(self):
         """シミュレーションステップ"""

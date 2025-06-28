@@ -657,10 +657,12 @@
             drone.add(droneLight);
         }
         
-        function updateDronePosition(x, y, z) {
+        function updateDronePosition(x, y, z, roll = 0, pitch = 0, yaw = 0) {
             dronePosition = { x: x, y: y, z: z };
             if (drone) {
                 drone.position.set(x, z, y); // Swap Y and Z for proper orientation
+                // ドローンの回転を設定（ロール、ピッチ、ヨー）
+                drone.rotation.set(roll, yaw, pitch); // X=roll, Y=yaw, Z=pitch
             }
             // カメラ追従モードの場合はカメラも更新
             if (cameraFollowMode) {
@@ -727,7 +729,16 @@
                 document.getElementById('pos-x').textContent = pos.x.toFixed(2);
                 document.getElementById('pos-y').textContent = pos.y.toFixed(2);
                 document.getElementById('pos-z').textContent = pos.z.toFixed(2);
-                updateDronePosition(pos.x, pos.y, pos.z);
+                
+                // 姿勢データを取得
+                let roll = 0, pitch = 0, yaw = 0;
+                if (data.orientation) {
+                    roll = data.orientation.roll;
+                    pitch = data.orientation.pitch;
+                    yaw = data.orientation.yaw;
+                }
+                
+                updateDronePosition(pos.x, pos.y, pos.z, roll, pitch, yaw);
                 
                 // リセット状態の検出（位置が(0,0,0)に近い場合）
                 const isReset = Math.abs(pos.x) < 0.01 && Math.abs(pos.y) < 0.01 && Math.abs(pos.z) < 0.01;
@@ -777,7 +788,7 @@
                         document.getElementById('orient-yaw').textContent = '0.000';
                         document.getElementById('thrust-value').textContent = '0.00';
                         // 3Dドローンの位置もリセット
-                        updateDronePosition(0, 0, 0);
+                        updateDronePosition(0, 0, 0, 0, 0, 0);
                         console.log('UI reset completed');
                     }, 100); // 少し遅延を入れて確実に実行
                 }
