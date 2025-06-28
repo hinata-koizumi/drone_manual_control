@@ -25,26 +25,9 @@ services:
       - ./install:/workspace/install
       - ./config:/workspace/config:ro
     environment:
-      - COLCON_OPTIONS=--packages-select common command_bridge state_bridge angle_bridge outer_motor_bridge --parallel-workers 1
+      - COLCON_OPTIONS=--packages-select common command_bridge state_bridge --parallel-workers 1
     depends_on:
       - drone_msgs
-
-  # シミュレーション起動
-  simulator:
-    build:
-      context: .
-      dockerfile: docker/Dockerfile.sim
-    volumes:
-      - ./src/sim_launch:/workspace/src/sim_launch:ro
-      - ./models:/workspace/models:ro
-      - ./custom_airframes:/workspace/custom_airframes:ro
-      - ./config:/workspace/config:ro
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw
-    environment:
-      - DISPLAY=${DISPLAY}
-      - QT_X11_NO_MITSHM=1
-    depends_on:
-      - bridge
 
   # 手動制御ノード（最適化）
   manual_control:
@@ -62,18 +45,19 @@ services:
     depends_on:
       - bridge
 
-  # 制御インターフェース（一時的に無効化）
-  # control_interface:
-  #   build:
-  #     context: .
-  #     dockerfile: docker/Dockerfile.interface
-  #   volumes:
-  #     - ./src/control_interface:/workspace/src/control_interface:ro
-  #     - ./config:/workspace/config:ro
-  #   ports:
-  #     - "8080:8080"
-  #   depends_on:
-  #     - manual_control
+  # Web視覚化サービス
+  web_viz:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.web_viz
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    volumes:
+      - ./web_viz:/workspace/web_viz:ro
+      - ./install:/workspace/install
+    depends_on:
+      - bridge
 
 networks:
   default:

@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Drone Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .status.connected {
+            border-left: 4px solid #00ff00;
+        }
+        .status.disconnected {
+            border-left: 4px solid #ff0000;
+        }
+        .data-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .data-box {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+        .data-box h3 {
+            margin-top: 0;
+            color: #007acc;
+        }
+        .value {
+            font-size: 18px;
+            font-weight: bold;
+            color: #00ff00;
+        }
+        .unit {
+            color: #888;
+            font-size: 12px;
+        }
+        .visualization {
+            background-color: #333;
+            padding: 20px;
+            border-radius: 5px;
+            text-align: center;
+            min-height: 200px;
+        }
+        .drone-icon {
+            font-size: 48px;
+            margin: 20px 0;
+        }
+        .controls {
+            background-color: #333;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .control-button {
+            background-color: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 5px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        .control-button:hover {
+            background-color: #005a9e;
+        }
+        .control-button:disabled {
+            background-color: #555;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚁 Drone Manual Control Visualization</h1>
+            <p>Real-time drone position and velocity monitoring</p>
+        </div>
+
+        <div id="status" class="status disconnected">
+            <h3>Connection Status</h3>
+            <div id="status-text">Disconnected from ROS 2</div>
+        </div>
+
+        <div class="data-panel">
+            <div class="data-box">
+                <h3>Position (X, Y, Z)</h3>
+                <div id="position" class="value">0.00, 0.00, 0.00</div>
+                <div class="unit">meters</div>
+            </div>
+            <div class="data-box">
+                <h3>Velocity (X, Y, Z)</h3>
+                <div id="velocity" class="value">0.00, 0.00, 0.00</div>
+                <div class="unit">m/s</div>
+            </div>
+        </div>
+
+        <div class="visualization">
+            <h3>3D Visualization</h3>
+            <div class="drone-icon">🚁</div>
+            <div id="visualization-text">Waiting for data...</div>
+        </div>
+
+        <div class="controls">
+            <h3>Manual Control</h3>
+            <button class="control-button" onclick="sendCommand('takeoff')">Takeoff</button>
+            <button class="control-button" onclick="sendCommand('land')">Land</button>
+            <button class="control-button" onclick="sendCommand('hover')">Hover</button>
+            <button class="control-button" onclick="sendCommand('emergency_stop')">Emergency Stop</button>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let isConnected = false;
+
+        function connect() {
+            ws = new WebSocket('ws://localhost:8081');
+            
+            ws.onopen = function() {
+                isConnected = true;
+                updateStatus('Connected to ROS 2', true);
+            };
+            
+            ws.onmessage = function(event) {
+                const data = JSON.parse(event.data);
+                updateData(data);
+            };
+            
+            ws.onclose = function() {
+                isConnected = false;
+                updateStatus('Disconnected from ROS 2', false);
+                // 再接続を試行
+                setTimeout(connect, 3000);
+            };
+            
+            ws.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                updateStatus('Connection error', false);
+            };
+        }
+
+        function updateStatus(text, connected) {
+            const statusDiv = document.getElementById('status');
+            const statusText = document.getElementById('status-text');
+            
+            statusText.textContent = text;
+            statusDiv.className = connected ? 'status connected' : 'status disconnected';
+        }
+
+        function updateData(data) {
+            if (data.position) {
+                const pos = data.position;
+                document.getElementById('position').textContent = 
+                    `${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}`;
+            }
+            
+            if (data.velocity) {
+                const vel = data.velocity;
+                document.getElementById('velocity').textContent = 
+                    `${vel.x.toFixed(2)}, ${vel.y.toFixed(2)}, ${vel.z.toFixed(2)}`;
+            }
+
+            // 視覚化テキストの更新
+            if (data.position) {
+                const pos = data.position;
+                document.getElementById('visualization-text').textContent = 
+                    `Drone at: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`;
+            }
+        }
+
+        function sendCommand(command) {
+            if (ws && isConnected) {
+                ws.send(JSON.stringify({command: command}));
+            } else {
+                alert('Not connected to ROS 2');
+            }
+        }
+
+        // 接続開始
+        connect();
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            updateStatus('Connecting to ROS 2...', false);
+        });
+    </script>
+</body>
+</html> 

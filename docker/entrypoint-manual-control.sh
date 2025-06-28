@@ -13,12 +13,7 @@ fi
 if [ $# -gt 0 ]; then
     exec "$@"
 else
-    # manual_controlパッケージの起動（直接launchファイルを実行）
-    if [ -f /workspace/install/share/manual_control/launch/simple_demo_launch.py ]; then
-        echo "simple_demo_launch.pyを直接実行します"
-        exec python3 /workspace/install/share/manual_control/launch/simple_demo_launch.py
-    else
-        echo "simple_demo_launch.pyが見つかりません"
-        exit 1
-    fi
+    # manual_controlパッケージの起動（直接Pythonモジュールを実行）
+    echo "Starting manual_control package..."
+    exec python3 -m manual_control.simple_simulator
 fi 

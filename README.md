@@ -5,6 +5,35 @@
 この環境は、事前定義された行動をドローンに実行させるための手動制御システムです。
 元の強化学習環境から再利用可能なコンポーネントを移行して構築されています。
 
+## 🚀 クイックスタート
+
+### 完全自動デプロイ（推奨）
+```bash
+# ワンクリックでシステムを起動（ブラウザも自動で開きます）
+./scripts/quick_start.sh
+```
+
+### 段階的デプロイ
+```bash
+# 1. すべてのパッケージをビルド
+./scripts/build_all.sh
+
+# 2. システムを起動
+./scripts/start_system.sh
+```
+
+### 完全自動化（オプション付き）
+```bash
+# 完全自動デプロイ（ビルド + 起動 + ヘルスチェック）
+./scripts/auto_deploy.sh
+
+# オプション付きデプロイ
+./scripts/auto_deploy.sh --clean        # クリーンな状態から開始
+./scripts/auto_deploy.sh --build-only   # ビルドのみ実行
+./scripts/auto_deploy.sh --start-only   # 既存ビルドで起動のみ
+./scripts/auto_deploy.sh --no-web-viz   # Web可視化を無効にして起動
+```
+
 ## 専用ドローン機体情報
 
 ### Aether-SL
@@ -24,12 +53,6 @@
 - **メインローター**: 4基（6インチプロペラ、最大11000rpm）
 - **制御チャンネル**: 4チャンネル（4ローター）
 - **推力定数**: 1.6（高効率設計）
-
-#### **センサーシステム**
-- **IMU**: 9軸（500Hz更新、高精度）
-- **GPS**: デュアルバンドGNSS（10Hz更新）
-- **バロメータ**: 高度計測（60Hz更新）
-- **磁気センサ**: 3軸（50Hz更新）
 
 #### **安全機能**
 - **ジオフェンス**: 水平20km、垂直50m制限
@@ -56,9 +79,11 @@
 
 - **事前定義行動実行**: ホバリング、離陸、着陸、軌道追従などの基本動作
 - **ROS 2 Humble対応**: 最新のROS 2フレームワークを使用
-- **Ignition Gazebo (Garden)**: 高精度な物理シミュレーション
+- **シンプルシミュレーション**: 軽量なPythonベースシミュレーター
 - **Docker統合**: 再現可能な開発環境
 - **モジュラー設計**: 既存のブリッジコンポーネントを再利用
+- **Web可視化**: ブラウザベースの3D可視化と手動制御
+- **完全自動化**: ワンクリックでシステム構築から起動まで
 
 ## 移行されたコンポーネント
 
@@ -67,23 +92,18 @@
 - `drone_msgs/` - カスタムメッセージ定義
 - `px4_msgs/` - PX4メッセージ定義
 
-### シミュレーション環境
-- `sim_launch/` - Gazebo Sim起動設定
-- `models/` - ドローンモデル
-- `custom_airframes/` - エアフレーム設定
-
 ### ブリッジノード
 - `command_bridge/` - 制御コマンド変換
 - `state_bridge/` - 状態情報変換
-- `angle_bridge/` - 角度制御
-- `outer_motor_bridge/` - 外部モーター制御
 
 ## 新規追加コンポーネント
 
 ### 手動制御システム
 - `manual_control/` - 事前定義行動実行ノード
 - `action_sequences/` - 行動シーケンス定義
-- `control_interface/` - 制御インターフェース
+
+### Web可視化システム
+- `web_viz/` - ブラウザベースの3D可視化と制御インターフェース
 
 ## セットアップ手順
 
@@ -107,9 +127,6 @@ docker-compose build
 
 ### 4. 手動実行（オプション）
 ```bash
-# シミュレーション起動
-docker-compose up -d simulator
-
 # ブリッジノード起動
 docker-compose up -d bridge
 
@@ -127,7 +144,7 @@ cd drone_manual_control
 docker-compose build
 ```
 
-2. **シミュレーション起動**
+2. **システム起動**
 ```bash
 docker-compose up -d
 ```
@@ -137,10 +154,24 @@ docker-compose up -d
 docker-compose up -d manual_control
 ```
 
+### Web可視化の使用
+1. **システム起動後、ブラウザでアクセス**
+```
+http://localhost:8080
+```
+
+2. **利用可能な機能**
+- リアルタイム3Dドローン可視化
+- 手動制御ボタン（上昇、下降、前進、後退、左旋回、右旋回）
+- ドローン状態のリアルタイム表示（位置、速度）
+
 ### ログの確認
 ```bash
 # 手動制御ノードのログ
 docker-compose logs -f manual_control
+
+# Web可視化のログ
+docker-compose logs -f web_viz
 
 # 全ノードのログ
 docker-compose logs -f
@@ -150,5 +181,23 @@ docker-compose logs -f
 ```bash
 docker-compose down
 ```
+
+## 自動化スクリプト
+
+### `scripts/auto_deploy.sh` - 完全自動デプロイ
+- ビルドから起動、ヘルスチェックまで完全自動化
+- オプション付きで柔軟な運用が可能
+
+### `scripts/quick_start.sh` - クイックスタート
+- ワンクリックでシステム起動
+- ブラウザも自動で開く
+
+### `scripts/build_all.sh` - 段階的ビルド
+- 各パッケージを順次ビルド
+- 詳細なログ出力
+
+### `scripts/start_system.sh` - システム起動
+- 既存ビルドを使用してシステム起動
+- ヘルスチェック付き
 
 # Manual control CI trigger
