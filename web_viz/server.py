@@ -110,11 +110,7 @@ class ROS2ControlNode(Node):
             msg.header.frame_id = "world"
             
             # コマンドに基づいて制御値を設定
-            if command == "take_off":
-                # 離陸: 上向きの推力
-                msg.twist.linear.z = 0.5  # 50%の推力
-                self.get_logger().info('Setting take_off command: linear.z = 0.5')
-            elif command == "land":
+            if command == "land":
                 # 着陸: 下向きの推力
                 msg.twist.linear.z = -0.3  # 30%の下向き推力
                 self.get_logger().info('Setting land command: linear.z = -0.3')
@@ -128,9 +124,6 @@ class ROS2ControlNode(Node):
                 msg.twist.linear.y = 0.0
                 msg.twist.linear.z = 0.0
                 self.get_logger().info('Setting stop command: all velocities = 0')
-            elif command == "up":
-                msg.twist.linear.z = 0.3
-                self.get_logger().info('Setting up command: linear.z = 0.3')
             elif command == "down":
                 msg.twist.linear.z = -0.2
                 self.get_logger().info('Setting down command: linear.z = -0.2')
@@ -156,6 +149,9 @@ class ROS2ControlNode(Node):
                 msg.twist.angular.y = 0.0
                 msg.twist.angular.z = 0.0
                 self.get_logger().info('Setting reset command: position reset to [0.0, 0.0, 0.0]')
+            elif command == "up":
+                msg.twist.linear.z = 0.7
+                self.get_logger().info('Setting up command: linear.z = 0.7')
             else:
                 self.get_logger().warn(f'Unknown command: {command}')
                 return
