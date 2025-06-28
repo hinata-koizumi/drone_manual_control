@@ -70,6 +70,15 @@
             height: 400px;
             border: 1px solid #555;
             border-radius: 5px;
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            cursor: grab;
+        }
+        
+        #threejs-container:active {
+            cursor: grabbing;
         }
         .controls {
             background-color: #333;
@@ -162,6 +171,10 @@
             </div>
             <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
                 <button id="camera-follow-btn" class="control-button" onclick="toggleCameraFollow()" style="background-color: #4CAF50;">カメラ追従: ON</button>
+                <div style="margin-top: 5px; font-size: 12px; color: #888;">
+                    ON: ドローンを追従（手動操作で角度調整可能）<br>
+                    OFF: 固定視点（完全手動操作）
+                </div>
             </div>
         </div>
     </div>
@@ -173,6 +186,46 @@
         // Three.js variables
         let scene, camera, renderer, drone, grid;
         let dronePosition = { x: 0, y: 0, z: 0 };
+        let cameraFollowMode = true; // カメラ追従モード
+        let cameraDistance = 8;
+        let cameraAngleX = 0.3;
+        let cameraAngleY = 0.2;
+        
+        // カメラ追従モード切り替え関数（グローバルスコープ）
+        function toggleCameraFollow() {
+            cameraFollowMode = !cameraFollowMode;
+            const button = document.getElementById('camera-follow-btn');
+            if (cameraFollowMode) {
+                button.textContent = 'カメラ追従: ON';
+                button.style.backgroundColor = '#4CAF50';
+            } else {
+                button.textContent = 'カメラ追従: OFF';
+                button.style.backgroundColor = '#f44336';
+            }
+            updateCamera();
+            console.log('Camera follow mode:', cameraFollowMode ? 'ON' : 'OFF');
+        }
+        
+        // カメラ更新関数（グローバルスコープ）
+        function updateCamera() {
+            if (cameraFollowMode && dronePosition) {
+                // ドローン追従モード（手動操作でカメラ角度を調整可能）
+                const targetX = dronePosition.x;
+                const targetY = dronePosition.z; // YとZを入れ替え
+                const targetZ = dronePosition.y;
+                
+                camera.position.x = targetX + cameraDistance * Math.cos(cameraAngleX) * Math.sin(cameraAngleY);
+                camera.position.y = targetY + cameraDistance * Math.sin(cameraAngleX);
+                camera.position.z = targetZ + cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+                camera.lookAt(targetX, targetY, targetZ);
+            } else {
+                // 完全手動カメラモード（ドローン位置に関係なく固定視点）
+                camera.position.x = cameraDistance * Math.cos(cameraAngleX) * Math.sin(cameraAngleY);
+                camera.position.y = cameraDistance * Math.sin(cameraAngleX);
+                camera.position.z = cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+                camera.lookAt(0, 0, 0);
+            }
+        }
         
         // Initialize Three.js scene
         function initThreeJS() {
@@ -221,17 +274,21 @@
             // Camera controls
             let isMouseDown = false;
             let mouseX = 0, mouseY = 0;
-            let cameraDistance = 8;
-            let cameraAngleX = 0.3;
-            let cameraAngleY = 0.2;
-            let cameraFollowMode = true; // カメラ追従モード
-            let manualCameraPosition = { x: 0, y: 0, z: 0 }; // 手動カメラ位置
+            
+            container.addEventListener('contextmenu', function(e) {
+                // 右クリックメニューを無効にする
+                e.preventDefault();
+            });
             
             container.addEventListener('mousedown', function(e) {
+                // ブラウザのデフォルト動作を防ぐ
+                e.preventDefault();
+                
                 isMouseDown = true;
                 mouseX = e.clientX;
                 mouseY = e.clientY;
-                cameraFollowMode = false; // マウス操作時に手動モードに切り替え
+                
+                // カメラ追従モードは手動操作でも維持（自動切り替えを削除）
             });
             
             container.addEventListener('mouseup', function() {
@@ -255,44 +312,13 @@
             });
             
             container.addEventListener('wheel', function(e) {
+                // ブラウザのデフォルトズームを防ぐ
+                e.preventDefault();
+                
                 cameraDistance += e.deltaY * 0.01;
                 cameraDistance = Math.max(3, Math.min(50, cameraDistance));
                 updateCamera();
-            });
-            
-            function updateCamera() {
-                if (cameraFollowMode && dronePosition) {
-                    // ドローン追従モード
-                    const targetX = dronePosition.x;
-                    const targetY = dronePosition.z; // YとZを入れ替え
-                    const targetZ = dronePosition.y;
-                    
-                    camera.position.x = targetX + cameraDistance * Math.cos(cameraAngleX) * Math.sin(cameraAngleY);
-                    camera.position.y = targetY + cameraDistance * Math.sin(cameraAngleX);
-                    camera.position.z = targetZ + cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
-                    camera.lookAt(targetX, targetY, targetZ);
-                } else {
-                    // 手動カメラモード
-                    camera.position.x = cameraDistance * Math.cos(cameraAngleX) * Math.sin(cameraAngleY);
-                    camera.position.y = cameraDistance * Math.sin(cameraAngleX);
-                    camera.position.z = cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
-                    camera.lookAt(0, 0, 0);
-                }
-            }
-            
-            // カメラ追従モード切り替え関数
-            function toggleCameraFollow() {
-                cameraFollowMode = !cameraFollowMode;
-                const button = document.getElementById('camera-follow-btn');
-                if (cameraFollowMode) {
-                    button.textContent = 'カメラ追従: ON';
-                    button.style.backgroundColor = '#4CAF50';
-                } else {
-                    button.textContent = 'カメラ追従: OFF';
-                    button.style.backgroundColor = '#f44336';
-                }
-                updateCamera();
-            }
+            }, { passive: false });
             
             // Animation loop
             function animate() {
