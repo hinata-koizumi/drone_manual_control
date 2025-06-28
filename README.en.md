@@ -46,12 +46,22 @@ This environment provides a ROS 2 Humble-based drone manual control system. You 
 ✅ **Down**: Drone descends (Z-axis negative direction, moderate)  
 ✅ **Stop**: Stop all movement  
 ✅ **Hover**: Maintain hovering state  
+✅ **Reset**: Reset drone to initial position (0,0,0)  
 
 ### Real-time Display
 ✅ **Position Information**: Real-time X, Y, Z coordinate updates  
 ✅ **Velocity Information**: Real-time X, Y, Z axis velocity updates  
 ✅ **WebSocket Communication**: Stable real-time communication  
 ✅ **3D Visualization**: Browser-based drone position display  
+
+### 3D Visualization Features
+✅ **Real-time 3D Display**: Beautiful 3D visualization based on Three.js  
+✅ **Camera Controls**: Mouse drag for rotation, wheel for zoom, right-click for pan  
+✅ **Camera Follow Mode**: Toggleable drone tracking functionality  
+✅ **Browser Zoom Prevention**: Intuitive operation with zoom only in 3D view  
+✅ **Beautiful Drone 3D Model**: High-visibility white model with glossy effects  
+✅ **Grid Display**: Easy-to-understand grid for position reference  
+✅ **Operation Guide**: Intuitive operation instructions
 
 ## Dedicated Drone Specifications
 
@@ -113,7 +123,7 @@ See `config/drone_specs.yaml` for detailed specifications.
 - **Docker Compose**: Multi-container environment
 - **WebSocket**: Real-time Web UI communication
 - **Python**: Simulation and control logic
-- **JavaScript**: Web UI frontend
+- **JavaScript/Three.js**: Web UI frontend and 3D visualization
 
 ## Features
 
@@ -125,6 +135,9 @@ See `config/drone_specs.yaml` for detailed specifications.
 - **Web Visualization**: Browser-based 3D visualization and manual control
 - **Complete Automation**: One-click system setup to startup
 - **Multi-process Support**: Stable WebSocket communication and ROS 2 integration
+- **Intuitive 3D Operation**: Free camera control with mouse operations
+- **Camera Follow Function**: Automatic drone tracking camera mode
+- **Complete Reset Function**: Reliable drone reset to initial position
 
 ## Migrated Components
 
@@ -219,6 +232,8 @@ http://localhost:8080
 - Manual control buttons (ascend, descend, forward, backward, left, right)
 - Real-time drone status display (position, velocity)
 - WebSocket connection status display
+- Camera follow mode toggle
+- Complete reset functionality
 
 3. **Control Buttons**
 - **Take Off**: Make drone ascend
@@ -228,6 +243,22 @@ http://localhost:8080
 - **Up/Down**: Ascend/descend (moderate)
 - **Stop**: Stop all movement
 - **Hover**: Maintain hovering state
+- **Reset**: Reset drone to initial position (0,0,0)
+
+4. **3D Visualization Controls**
+- **Mouse Drag**: Camera rotation
+- **Mouse Wheel**: Zoom in/out
+- **Right-click Drag**: Camera pan
+- **Camera Follow Button**: ON/OFF toggle
+  - **ON**: Follow drone (manual angle adjustment possible)
+  - **OFF**: Fixed viewpoint (complete manual control)
+
+5. **3D Visualization Features**
+- Prevents browser-wide zoom, zoom only works in 3D view
+- Beautiful white drone 3D model (with glossy effects)
+- Grid display for easy position reference
+- Intuitive operation guide display
+- Manual angle adjustment possible even in camera follow mode
 
 ### Log Monitoring
 ```bash
@@ -254,6 +285,17 @@ docker-compose down
 3. **Data Sharing Improvement**: Optimized data transfer between multi-processes
 4. **Horizontal Movement Support**: Properly handle `linear.x` and `linear.y` commands
 5. **Real-time Updates**: UI position and velocity data updates in real-time
+6. **Reset Function Improvement**: Complete reset functionality and cooldown period implementation
+7. **3D Visualization Enhancement**: Browser zoom prevention, camera follow function, intuitive operation
+8. **Camera Follow Mode Stabilization**: Scope issue resolution and combination with manual operation
+
+### New Features and Improvements
+1. **Complete Reset Function**: Reliable drone reset to initial position (0,0,0)
+2. **Reset Cooldown**: 1-second control command ignore period after reset
+3. **3D Visualization**: Beautiful 3D display based on Three.js
+4. **Camera Follow Function**: Toggleable drone tracking
+5. **Intuitive Operation**: Browser zoom prevention, improved mouse operation
+6. **Beautiful UI**: White drone 3D model, glossy effects, grid display
 
 ### Communication Flow
 1. **Web UI** → **WebSocket** → **ROS 2 Control Node** → **TwistStamped** → **Simulator**
@@ -289,6 +331,9 @@ docker-compose down
 1. **WebSocket Connection Error**: Stop other processes if port 8080 is in use
 2. **ROS 2 Communication Error**: Check network settings between containers
 3. **UI Not Updating**: Clear browser cache
+4. **3D View Not Displaying**: Check browser WebGL support
+5. **Camera Follow Not Working**: Check error logs in browser console
+6. **Reset Button Not Working**: Wait for cooldown period (1 second) after reset
 
 ### Debug Methods
 ```bash
@@ -301,6 +346,10 @@ docker-compose logs -f web_viz
 
 # ROS 2 topic verification in container
 docker-compose exec manual_control bash -c "source /opt/ros/humble/setup.bash && ros2 topic list"
+
+# Browser developer tools debugging
+# Press F12 and check console tab for logs
+# Check camera follow mode toggle logs and error messages
 ```
 
 ## License
