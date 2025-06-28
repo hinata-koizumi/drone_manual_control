@@ -255,96 +255,6 @@
             background-color: #555;
             cursor: not-allowed;
         }
-        
-        /* D-pad Styles */
-        .dpad-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 2px;
-            margin: 0 auto;
-            width: fit-content;
-        }
-        
-        .dpad-row {
-            display: flex;
-            align-items: center;
-            gap: 2px;
-        }
-        
-        .dpad-button {
-            width: 50px;
-            height: 50px;
-            border: none;
-            border-radius: 8px;
-            background: linear-gradient(135deg, #4a90e2 0%, #357abd 100%);
-            color: white;
-            font-size: 20px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
-        }
-        
-        .dpad-button:hover {
-            background: linear-gradient(135deg, #5ba0f2 0%, #4a90e2 100%);
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
-        }
-        
-        .dpad-button:active {
-            transform: translateY(0);
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-        }
-        
-        .dpad-spacer {
-            width: 50px;
-            height: 50px;
-        }
-        
-        .dpad-center {
-            width: 50px;
-            height: 50px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 8px;
-            border: 2px solid rgba(255, 255, 255, 0.2);
-        }
-        
-        .dpad-up {
-            background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
-        }
-        
-        .dpad-up:hover {
-            background: linear-gradient(135deg, #5CBF60 0%, #4CAF50 100%);
-        }
-        
-        .dpad-down {
-            background: linear-gradient(135deg, #f44336 0%, #d32f2f 100%);
-        }
-        
-        .dpad-down:hover {
-            background: linear-gradient(135deg, #f55a4d 0%, #f44336 100%);
-        }
-        
-        .dpad-left {
-            background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
-        }
-        
-        .dpad-left:hover {
-            background: linear-gradient(135deg, #ffa726 0%, #ff9800 100%);
-        }
-        
-        .dpad-right {
-            background: linear-gradient(135deg, #9c27b0 0%, #7b1fa2 100%);
-        }
-        
-        .dpad-right:hover {
-            background: linear-gradient(135deg, #ab47bc 0%, #9c27b0 100%);
-        }
     </style>
 </head>
 <body>
@@ -381,33 +291,16 @@
 
             <div class="controls">
                 <h3>Manual Control</h3>
-                <div style="margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 10px 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">Directional Control</h4>
-                    <div class="dpad-container">
-                        <div class="dpad-row">
-                            <div class="dpad-spacer"></div>
-                            <button class="dpad-button dpad-up" onclick="sendCommand('up')">▲</button>
-                            <div class="dpad-spacer"></div>
-                        </div>
-                        <div class="dpad-row">
-                            <button class="dpad-button dpad-left" onclick="sendCommand('left')">◀</button>
-                            <div class="dpad-center"></div>
-                            <button class="dpad-button dpad-right" onclick="sendCommand('right')">▶</button>
-                        </div>
-                        <div class="dpad-row">
-                            <div class="dpad-spacer"></div>
-                            <button class="dpad-button dpad-down" onclick="sendCommand('down')">▼</button>
-                            <div class="dpad-spacer"></div>
-                        </div>
-                    </div>
+                <div style="margin-bottom: 10px;">
+                    <button class="control-button" onclick="sendCommand('up')">UP</button>
+                    <button class="control-button" onclick="sendCommand('down')">Down</button>
+                    <button class="control-button" onclick="sendCommand('left')">Left</button>
+                    <button class="control-button" onclick="sendCommand('right')">Right</button>
                 </div>
-                <div style="margin-bottom: 15px;">
-                    <h4 style="margin: 0 0 10px 0; color: rgba(255, 255, 255, 0.8); font-size: 14px;">Flight Control</h4>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
-                        <button class="control-button" onclick="sendCommand('land')">Land</button>
-                        <button class="control-button" onclick="sendCommand('hover')">Hover</button>
-                        <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
-                    </div>
+                <div style="margin-bottom: 10px;">
+                    <button class="control-button" onclick="sendCommand('land')">Land</button>
+                    <button class="control-button" onclick="sendCommand('hover')">Hover</button>
+                    <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
                 </div>
                 <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
                     <button id="camera-follow-btn" class="control-button" onclick="toggleCameraFollow()" style="background-color: #4CAF50;">Camera Follow: ON</button>
