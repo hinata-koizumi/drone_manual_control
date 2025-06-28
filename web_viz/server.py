@@ -6,7 +6,7 @@ import json
 import rclpy
 from rclpy.node import Node
 from geometry_msgs.msg import PoseStamped, TwistStamped
-from std_msgs.msg import String
+from std_msgs.msg import String, Float32
 import threading
 import time
 from flask import Flask, send_from_directory
@@ -57,6 +57,13 @@ class ROS2ControlNode(Node):
             self.qos_profile
         )
         
+        self.thrust_sub = self.create_subscription(
+            Float32,
+            '/drone/thrust',
+            self.thrust_callback,
+            self.qos_profile
+        )
+        
         # 制御コマンドのパブリッシャー
         self.control_pub = self.create_publisher(
             TwistStamped,
@@ -67,6 +74,8 @@ class ROS2ControlNode(Node):
         # 位置と速度データ
         self.position = {'x': 0.0, 'y': 0.0, 'z': 0.0}
         self.velocity = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+        self.thrust = 0.0  # 推力データを追加
+        self.orientation = {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}  # 姿勢データを追加
         
         # コマンド処理タイマー
         self.create_timer(0.1, self.process_commands)
@@ -81,7 +90,17 @@ class ROS2ControlNode(Node):
             'y': msg.pose.position.y,
             'z': msg.pose.position.z
         }
+        
+        # クォータニオンからオイラー角に変換
+        self.orientation = self.quaternion_to_euler(
+            msg.pose.orientation.x,
+            msg.pose.orientation.y,
+            msg.pose.orientation.z,
+            msg.pose.orientation.w
+        )
+        
         self.get_logger().info(f'Received position: x={self.position["x"]:.2f}, y={self.position["y"]:.2f}, z={self.position["z"]:.2f}')
+        self.get_logger().info(f'Received orientation: roll={self.orientation["roll"]:.2f}, pitch={self.orientation["pitch"]:.2f}, yaw={self.orientation["yaw"]:.2f}')
     
     def velocity_callback(self, msg):
         self.velocity = {
@@ -90,6 +109,10 @@ class ROS2ControlNode(Node):
             'z': msg.twist.linear.z
         }
         self.get_logger().info(f'Received velocity: x={self.velocity["x"]:.2f}, y={self.velocity["y"]:.2f}, z={self.velocity["z"]:.2f}')
+    
+    def thrust_callback(self, msg):
+        self.thrust = msg.data
+        self.get_logger().info(f'Received thrust: {self.thrust}')
     
     def process_commands(self):
         """コマンドキューからコマンドを処理"""
@@ -115,9 +138,9 @@ class ROS2ControlNode(Node):
                 msg.twist.linear.z = -0.3  # 30%の下向き推力
                 self.get_logger().info('Setting land command: linear.z = -0.3')
             elif command == "hover":
-                # ホバリング: 重力と釣り合う推力
-                msg.twist.linear.z = 0.1  # 10%の上向き推力
-                self.get_logger().info('Setting hover command: linear.z = 0.1')
+                # ホバリング: シミュレーター側のPID制御に任せる
+                msg.twist.linear.z = 0.0  # 推力0（PID制御が自動調整）
+                self.get_logger().info('Setting hover command: linear.z = 0.0 (PID control)')
             elif command == "stop":
                 # 停止: すべての動きを停止
                 msg.twist.linear.x = 0.0
@@ -128,30 +151,35 @@ class ROS2ControlNode(Node):
                 msg.twist.linear.z = -0.2
                 self.get_logger().info('Setting down command: linear.z = -0.2')
             elif command == "forward":
-                msg.twist.linear.x = 0.3
-                self.get_logger().info('Setting forward command: linear.x = 0.3')
+                msg.twist.linear.x = 0.8
+                self.get_logger().info('Setting forward command: linear.x = 0.8')
             elif command == "backward":
-                msg.twist.linear.x = -0.3
-                self.get_logger().info('Setting backward command: linear.x = -0.3')
+                msg.twist.linear.x = -0.8
+                self.get_logger().info('Setting backward command: linear.x = -0.8')
             elif command == "left":
-                msg.twist.linear.y = 0.3
-                self.get_logger().info('Setting left command: linear.y = 0.3')
+                msg.twist.linear.y = 0.8
+                self.get_logger().info('Setting left command: linear.y = 0.8')
             elif command == "right":
-                msg.twist.linear.y = -0.3
-                self.get_logger().info('Setting right command: linear.y = -0.3')
+                msg.twist.linear.y = -0.8
+                self.get_logger().info('Setting right command: linear.y = -0.8')
             elif command == "reset":
-                # リセット: 位置のみをリセット（速度・姿勢は保持）
-                # 位置をリセットするための特別なコマンドとして、すべての値を0に送信
-                msg.twist.linear.x = 0.0
-                msg.twist.linear.y = 0.0
-                msg.twist.linear.z = 0.0
-                msg.twist.angular.x = 0.0
-                msg.twist.angular.y = 0.0
-                msg.twist.angular.z = 0.0
-                self.get_logger().info('Setting reset command: position reset to [0.0, 0.0, 0.0]')
+                # リセット: 特別な値でリセットコマンドを送信
+                msg.twist.linear.x = 999.0  # 特別な値でリセットを識別
+                msg.twist.linear.y = 999.0
+                msg.twist.linear.z = 999.0
+                msg.twist.angular.x = 999.0
+                msg.twist.angular.y = 999.0
+                msg.twist.angular.z = 999.0
+                self.get_logger().info('Setting reset command: special values for reset detection')
             elif command == "up":
                 msg.twist.linear.z = 0.7
                 self.get_logger().info('Setting up command: linear.z = 0.7')
+            elif command == "turn_left":
+                msg.twist.angular.z = 0.5
+                self.get_logger().info('Setting turn left command: angular.z = 0.5')
+            elif command == "turn_right":
+                msg.twist.angular.z = -0.5
+                self.get_logger().info('Setting turn right command: angular.z = -0.5')
             else:
                 self.get_logger().warn(f'Unknown command: {command}')
                 return
@@ -169,7 +197,37 @@ class ROS2ControlNode(Node):
         """ドローンの位置と速度データを取得"""
         return {
             'position': self.position,
-            'velocity': self.velocity
+            'velocity': self.velocity,
+            'thrust': self.thrust,
+            'orientation': self.orientation
+        }
+    
+    def quaternion_to_euler(self, x, y, z, w):
+        """クォータニオンをオイラー角（ロール、ピッチ、ヨー）に変換"""
+        import math
+        
+        # クォータニオンからオイラー角への変換
+        # ロール (x-axis rotation)
+        sinr_cosp = 2 * (w * x + y * z)
+        cosr_cosp = 1 - 2 * (x * x + y * y)
+        roll = math.atan2(sinr_cosp, cosr_cosp)
+        
+        # ピッチ (y-axis rotation)
+        sinp = 2 * (w * y - z * x)
+        if abs(sinp) >= 1:
+            pitch = math.copysign(math.pi / 2, sinp)  # 90度の場合
+        else:
+            pitch = math.asin(sinp)
+        
+        # ヨー (z-axis rotation)
+        siny_cosp = 2 * (w * z + x * y)
+        cosy_cosp = 1 - 2 * (y * y + z * z)
+        yaw = math.atan2(siny_cosp, cosy_cosp)
+        
+        return {
+            'roll': roll,
+            'pitch': pitch,
+            'yaw': yaw
         }
 
 def ros2_node_process(command_queue, data_queue):
@@ -203,7 +261,7 @@ class WebVizServer:
         self.clients = set()
         self.command_queue = multiprocessing.Queue()
         self.data_queue = multiprocessing.Queue()
-        self.latest_data = {'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'velocity': {'x': 0.0, 'y': 0.0, 'z': 0.0}}
+        self.latest_data = {'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'velocity': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'thrust': 0.0, 'orientation': {'roll': 0.0, 'pitch': 0.0, 'yaw': 0.0}}
         
         # ROS 2ノードを独立プロセスで開始
         self.ros2_process = multiprocessing.Process(
