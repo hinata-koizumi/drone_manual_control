@@ -8,9 +8,7 @@ FROM ${BASE_IMAGE} AS builder
 USER root
 WORKDIR /bridge_ws
 
-COPY src/angle_bridge src/angle_bridge
 COPY src/command_bridge src/command_bridge
-COPY src/outer_motor_bridge src/outer_motor_bridge
 COPY src/state_bridge src/state_bridge
 COPY src/common src/common
 COPY src/drone_msgs src/drone_msgs

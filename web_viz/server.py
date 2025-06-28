@@ -12,6 +12,9 @@ import time
 from flask import Flask, send_from_directory
 import os
 import logging
+import multiprocessing
+import queue
+from rclpy.qos import QoSProfile, ReliabilityPolicy, HistoryPolicy
 
 logging.basicConfig(level=logging.INFO)
 
@@ -26,81 +29,204 @@ def index():
 def serve_file(path):
     return send_from_directory('.', path)
 
-class WebVizServer(Node):
-    def __init__(self):
-        super().__init__('web_viz_server')
+class ROS2ControlNode(Node):
+    """ROS 2制御ノード（独立プロセス）"""
+    def __init__(self, command_queue):
+        super().__init__('ros2_control_node')
+        self.command_queue = command_queue
+        
+        # QoS設定（シミュレーターと一致）
+        self.qos_profile = QoSProfile(
+            depth=10,
+            reliability=ReliabilityPolicy.RELIABLE,
+            history=HistoryPolicy.KEEP_LAST
+        )
         
         # ROS 2トピックの購読
         self.position_sub = self.create_subscription(
             PoseStamped,
             '/drone/pose',
             self.position_callback,
-            10
+            self.qos_profile
         )
         
         self.velocity_sub = self.create_subscription(
             TwistStamped,
             '/drone/twist',
             self.velocity_callback,
-            10
+            self.qos_profile
         )
         
-        # コマンドパブリッシャー
-        self.command_pub = self.create_publisher(
-            String,
-            '/drone/command',
-            10
+        # 制御コマンドのパブリッシャー
+        self.control_pub = self.create_publisher(
+            TwistStamped,
+            '/drone/control_command',
+            self.qos_profile
         )
         
-        # 最新のデータ
-        self.latest_position = None
-        self.latest_velocity = None
+        # 位置と速度データ
+        self.position = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+        self.velocity = {'x': 0.0, 'y': 0.0, 'z': 0.0}
         
-        # WebSocketクライアント（グローバル変数として管理）
-        self._clients = set()
+        # コマンド処理タイマー
+        self.create_timer(0.1, self.process_commands)
         
-        self.get_logger().info('Web visualization server started')
-    
-    @property
-    def clients(self):
-        return self._clients
-    
-    @clients.setter
-    def clients(self, value):
-        self._clients = value
+        self.get_logger().info('ROS 2 Control Node started')
+        self.get_logger().info('Subscribing to /drone/pose and /drone/twist')
+        self.get_logger().info('Publishing to /drone/control_command')
     
     def position_callback(self, msg):
-        self.latest_position = {
+        self.position = {
             'x': msg.pose.position.x,
             'y': msg.pose.position.y,
             'z': msg.pose.position.z
         }
-        self.get_logger().info(f'Position: {self.latest_position}')
+        self.get_logger().info(f'Received position: x={self.position["x"]:.2f}, y={self.position["y"]:.2f}, z={self.position["z"]:.2f}')
     
     def velocity_callback(self, msg):
-        self.latest_velocity = {
+        self.velocity = {
             'x': msg.twist.linear.x,
             'y': msg.twist.linear.y,
             'z': msg.twist.linear.z
         }
-        self.get_logger().info(f'Velocity: {self.latest_velocity}')
+        self.get_logger().info(f'Received velocity: x={self.velocity["x"]:.2f}, y={self.velocity["y"]:.2f}, z={self.velocity["z"]:.2f}')
     
-    def get_latest_data(self):
-        """最新のデータを取得"""
-        data = {}
-        if self.latest_position:
-            data['position'] = self.latest_position
-        if self.latest_velocity:
-            data['velocity'] = self.latest_velocity
-        return data
+    def process_commands(self):
+        """コマンドキューからコマンドを処理"""
+        try:
+            while not self.command_queue.empty():
+                command = self.command_queue.get_nowait()
+                self.handle_command(command)
+        except queue.Empty:
+            pass
     
     def handle_command(self, command):
-        self.get_logger().info(f'Received command: {command}')
-        msg = String()
-        msg.data = command
-        self.command_pub.publish(msg)
+        """WebコマンドをTwistStampedメッセージに変換して送信"""
+        try:
+            self.get_logger().info(f'Received command: {command}')
+            
+            msg = TwistStamped()
+            msg.header.stamp = self.get_clock().now().to_msg()
+            msg.header.frame_id = "world"
+            
+            # コマンドに基づいて制御値を設定
+            if command == "take_off":
+                # 離陸: 上向きの推力
+                msg.twist.linear.z = 0.5  # 50%の推力
+                self.get_logger().info('Setting take_off command: linear.z = 0.5')
+            elif command == "land":
+                # 着陸: 下向きの推力
+                msg.twist.linear.z = -0.3  # 30%の下向き推力
+                self.get_logger().info('Setting land command: linear.z = -0.3')
+            elif command == "hover":
+                # ホバリング: 重力と釣り合う推力
+                msg.twist.linear.z = 0.1  # 10%の上向き推力
+                self.get_logger().info('Setting hover command: linear.z = 0.1')
+            elif command == "stop":
+                # 停止: すべての動きを停止
+                msg.twist.linear.x = 0.0
+                msg.twist.linear.y = 0.0
+                msg.twist.linear.z = 0.0
+                self.get_logger().info('Setting stop command: all velocities = 0')
+            elif command == "up":
+                msg.twist.linear.z = 0.3
+                self.get_logger().info('Setting up command: linear.z = 0.3')
+            elif command == "down":
+                msg.twist.linear.z = -0.2
+                self.get_logger().info('Setting down command: linear.z = -0.2')
+            elif command == "forward":
+                msg.twist.linear.x = 0.3
+                self.get_logger().info('Setting forward command: linear.x = 0.3')
+            elif command == "backward":
+                msg.twist.linear.x = -0.3
+                self.get_logger().info('Setting backward command: linear.x = -0.3')
+            elif command == "left":
+                msg.twist.linear.y = 0.3
+                self.get_logger().info('Setting left command: linear.y = 0.3')
+            elif command == "right":
+                msg.twist.linear.y = -0.3
+                self.get_logger().info('Setting right command: linear.y = -0.3')
+            else:
+                self.get_logger().warn(f'Unknown command: {command}')
+                return
+            
+            # メッセージを送信
+            self.control_pub.publish(msg)
+            self.get_logger().info(f'Successfully sent control command: {command}')
+            
+        except Exception as e:
+            self.get_logger().error(f'Error in handle_command: {e}')
+            import traceback
+            self.get_logger().error(traceback.format_exc())
+    
+    def get_drone_data(self):
+        """ドローンの位置と速度データを取得"""
+        return {
+            'position': self.position,
+            'velocity': self.velocity
+        }
 
-# グローバル変数としてWebVizServerインスタンスを保持
+def ros2_node_process(command_queue, data_queue):
+    """ROS 2ノードを独立プロセスで実行"""
+    rclpy.init()
+    node = ROS2ControlNode(command_queue)
+    
+    try:
+        while rclpy.ok():
+            rclpy.spin_once(node, timeout_sec=0.01)  # 10ms間隔に短縮
+            # データをキューに送信（より頻繁に）
+            try:
+                drone_data = node.get_drone_data()
+                data_queue.put_nowait(drone_data)
+            except queue.Full:
+                # キューが満杯の場合は古いデータを削除
+                try:
+                    data_queue.get_nowait()
+                    data_queue.put_nowait(drone_data)
+                except queue.Empty:
+                    pass
+    except KeyboardInterrupt:
+        pass
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()
+
+class WebVizServer:
+    """Web可視化サーバー（WebSocket + Flask）"""
+    def __init__(self):
+        self.clients = set()
+        self.command_queue = multiprocessing.Queue()
+        self.data_queue = multiprocessing.Queue()
+        self.latest_data = {'position': {'x': 0.0, 'y': 0.0, 'z': 0.0}, 'velocity': {'x': 0.0, 'y': 0.0, 'z': 0.0}}
+        
+        # ROS 2ノードを独立プロセスで開始
+        self.ros2_process = multiprocessing.Process(
+            target=ros2_node_process,
+            args=(self.command_queue, self.data_queue)
+        )
+        self.ros2_process.start()
+        
+        logging.info("WebVizServer initialized")
+    
+    def handle_command(self, command):
+        """コマンドをROS 2ノードに送信"""
+        try:
+            self.command_queue.put(command)
+            logging.info(f"Command sent to ROS 2 node: {command}")
+        except Exception as e:
+            logging.error(f"Error sending command: {e}")
+    
+    def get_drone_data(self):
+        """ドローン位置データを取得（最新データを優先）"""
+        try:
+            # キューから最新データを取得
+            while not self.data_queue.empty():
+                self.latest_data = self.data_queue.get_nowait()
+            return self.latest_data
+        except queue.Empty:
+            return self.latest_data
+
+# グローバル変数
 web_viz_server = None
 
 async def websocket_handler(websocket, *args, **kwargs):
@@ -113,86 +239,92 @@ async def websocket_handler(websocket, *args, **kwargs):
         try:
             async for message in websocket:
                 try:
+                    logging.info(f"Received message: {message}")
                     data = json.loads(message)
                     if 'command' in data:
+                        logging.info(f"Processing command: {data['command']}")
                         web_viz_server.handle_command(data['command'])
-                except json.JSONDecodeError:
-                    logging.warning(f"Invalid JSON: {message}")
+                        # コマンド送信後に確認メッセージを送信
+                        await websocket.send(json.dumps({"status": "command_sent", "command": data['command']}))
+                except json.JSONDecodeError as e:
+                    logging.error(f"JSON decode error: {e}")
+                except Exception as e:
+                    logging.error(f"Error processing message: {e}")
+                    import traceback
+                    logging.error(traceback.format_exc())
+        except websockets.exceptions.ConnectionClosed:
+            logging.info("WebSocket connection closed")
         except Exception as e:
-            logging.info(f"WebSocket client disconnected: {e}")
+            logging.error(f"WebSocket error: {e}")
+            import traceback
+            logging.error(traceback.format_exc())
         finally:
-            web_viz_server.clients.remove(websocket)
-            logging.info(f"Total clients: {len(web_viz_server.clients)}")
-
-def run_ros_node():
-    global web_viz_server
-    rclpy.init()
-    web_viz_server = WebVizServer()
-    
-    try:
-        rclpy.spin(web_viz_server)
-    except KeyboardInterrupt:
-        pass
-    finally:
-        web_viz_server.destroy_node()
-        rclpy.shutdown()
-
-def run_flask():
-    app.run(host='0.0.0.0', port=8080, debug=False, use_reloader=False)
+            web_viz_server.clients.discard(websocket)
+            logging.info(f"Client disconnected. Total clients: {len(web_viz_server.clients)}")
 
 async def broadcast_data():
-    """定期的にデータをブロードキャスト"""
+    """ドローン位置データをクライアントにブロードキャスト"""
     global web_viz_server
     while True:
         if web_viz_server and web_viz_server.clients:
-            data = web_viz_server.get_latest_data()
-            if data:
+            try:
+                data = web_viz_server.get_drone_data()
                 message = json.dumps(data)
-                print(f"Broadcasting data to {len(web_viz_server.clients)} clients: {message}")
-                await asyncio.gather(
-                    *[client.send(message) for client in web_viz_server.clients],
-                    return_exceptions=True
-                )
-        await asyncio.sleep(0.1)  # 100ms間隔
+                logging.info(f"Broadcasting data to {len(web_viz_server.clients)} clients: {data}")
+                
+                # 切断されたクライアントを削除
+                disconnected_clients = set()
+                for client in web_viz_server.clients:
+                    try:
+                        await client.send(message)
+                    except websockets.exceptions.ConnectionClosed:
+                        disconnected_clients.add(client)
+                    except Exception as e:
+                        logging.error(f"Error sending to client: {e}")
+                        disconnected_clients.add(client)
+                
+                web_viz_server.clients -= disconnected_clients
+                
+            except Exception as e:
+                logging.error(f"Error in broadcast_data: {e}")
+        
+        await asyncio.sleep(0.1)  # 100ms間隔で更新
 
 async def main():
     global web_viz_server
     
-    print("Starting WebSocket and Flask servers...")
+    # Web可視化サーバーを初期化
+    web_viz_server = WebVizServer()
     
-    # ROS 2ノードを別スレッドで実行
-    ros_thread = threading.Thread(target=run_ros_node)
-    ros_thread.daemon = True
-    ros_thread.start()
-    print("ROS 2 thread started")
+    # WebSocketサーバーを開始
+    websocket_server = await websockets.serve(
+        websocket_handler,
+        "0.0.0.0",
+        8765
+    )
     
-    # Flaskサーバーを別スレッドで実行
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
-    print("Flask thread started")
+    logging.info("WebSocket server started on ws://0.0.0.0:8765")
     
-    print("Starting WebSocket server on port 8081...")
+    # データブロードキャストタスクを開始
+    broadcast_task = asyncio.create_task(broadcast_data())
     
     try:
-        # WebSocketサーバーを起動
-        print("Creating WebSocket server...")
-        server = await websockets.serve(websocket_handler, "0.0.0.0", 8081)
-        print("WebSocket server created successfully")
-        print("WebSocket server started on ws://localhost:8081")
-        print("Web server started on http://localhost:8080")
-        
-        # データブロードキャストタスクを開始
-        print("Starting data broadcast task...")
-        broadcast_task = asyncio.create_task(broadcast_data())
-        print("Data broadcast task created")
-        
-        print("Waiting for tasks...")
-        await asyncio.gather(broadcast_task)
-    except Exception as e:
-        print(f"Error starting WebSocket server: {e}")
-        import traceback
-        traceback.print_exc()
+        await websocket_server.wait_closed()
+    except KeyboardInterrupt:
+        logging.info("Shutting down...")
+    finally:
+        broadcast_task.cancel()
+        if web_viz_server.ros2_process.is_alive():
+            web_viz_server.ros2_process.terminate()
+            web_viz_server.ros2_process.join()
 
 if __name__ == "__main__":
+    # Flaskサーバーを別スレッドで開始
+    def run_flask():
+        app.run(host='0.0.0.0', port=8080, debug=False)
+    
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+    
+    # WebSocketサーバーを開始
     asyncio.run(main()) 

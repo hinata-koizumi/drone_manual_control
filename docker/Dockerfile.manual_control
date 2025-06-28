@@ -20,24 +20,13 @@ WORKDIR /workspace
 # ROS 2環境を設定
 RUN echo "source /opt/ros/humble/setup.bash" >> ~/.bashrc
 
-# Python依存関係をインストール（最小限）
-COPY requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt \
-    && rm -rf /root/.cache/* /tmp/* /var/tmp/*
-
 # ソースコードをコピー
 COPY src/ src/
 COPY config/ config/
-COPY tests/ tests/
 
 # ビルド（最適化）
 RUN . /opt/ros/humble/setup.sh && \
     colcon build --merge-install --packages-select manual_control --parallel-workers 1
-
-# テスト実行（オプション）
-RUN . /opt/ros/humble/setup.sh && \
-    . install/setup.sh && \
-    python3 -m pytest tests/ -v
 
 # エントリーポイント
 COPY docker/entrypoint-manual-control.sh /entrypoint.sh

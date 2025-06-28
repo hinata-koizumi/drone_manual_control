@@ -2,8 +2,56 @@
 
 > **日本語**: [README.md](README.md)
 
-This environment provides a manual control system for executing predefined actions on drones.
-It is built by migrating reusable components from the original reinforcement learning environment.
+This environment provides a ROS 2 Humble-based drone manual control system. You can control drones in real-time from a web browser and monitor drone status with 3D visualization.
+
+## 🚀 Quick Start
+
+### Fully Automated Deployment (Recommended)
+```bash
+# One-click system startup (browser opens automatically)
+./scripts/quick_start.sh
+```
+
+### Step-by-Step Deployment
+```bash
+# 1. Build all packages
+./scripts/build_all.sh
+
+# 2. Start the system
+./scripts/start_system.sh
+```
+
+### Complete Automation (with options)
+```bash
+# Complete automated deployment (build + startup + health check)
+./scripts/auto_deploy.sh
+
+# Deployment with options
+./scripts/auto_deploy.sh --clean        # Start from clean state
+./scripts/auto_deploy.sh --build-only   # Build only
+./scripts/auto_deploy.sh --start-only   # Start only with existing build
+./scripts/auto_deploy.sh --no-web-viz   # Start without web visualization
+```
+
+## 🎮 Verified Working Features
+
+### Drone Control Commands
+✅ **Take Off**: Drone ascends (Z-axis positive direction)  
+✅ **Land**: Drone descends (Z-axis negative direction)  
+✅ **Forward**: Drone moves forward (X-axis positive direction)  
+✅ **Backward**: Drone moves backward (X-axis negative direction)  
+✅ **Left**: Drone moves left (Y-axis positive direction)  
+✅ **Right**: Drone moves right (Y-axis negative direction)  
+✅ **Up**: Drone ascends (Z-axis positive direction, moderate)  
+✅ **Down**: Drone descends (Z-axis negative direction, moderate)  
+✅ **Stop**: Stop all movement  
+✅ **Hover**: Maintain hovering state  
+
+### Real-time Display
+✅ **Position Information**: Real-time X, Y, Z coordinate updates  
+✅ **Velocity Information**: Real-time X, Y, Z axis velocity updates  
+✅ **WebSocket Communication**: Stable real-time communication  
+✅ **3D Visualization**: Browser-based drone position display  
 
 ## Dedicated Drone Specifications
 
@@ -52,13 +100,31 @@ A high-performance drone airframe specifically designed for the manual control e
 
 See `config/drone_specs.yaml` for detailed specifications.
 
+## System Architecture
+
+### Container Structure
+- **drone_msgs**: Custom message definitions
+- **bridge**: ROS 2 communication bridge
+- **manual_control**: Drone simulator and control system
+- **web_viz**: Web visualization and control interface
+
+### Technology Stack
+- **ROS 2 Humble**: Base communication system
+- **Docker Compose**: Multi-container environment
+- **WebSocket**: Real-time Web UI communication
+- **Python**: Simulation and control logic
+- **JavaScript**: Web UI frontend
+
 ## Features
 
-- **Predefined Action Execution**: Basic movements such as hovering, takeoff, landing, and trajectory following
+- **Real-time Control**: Instantly control drones from web browser
+- **Physics Simulation**: Realistic behavior considering gravity, thrust, and control
 - **ROS 2 Humble Support**: Uses the latest ROS 2 framework
-- **Ignition Gazebo (Garden)**: High-precision physics simulation
 - **Docker Integration**: Reproducible development environment
 - **Modular Design**: Reuses existing bridge components
+- **Web Visualization**: Browser-based 3D visualization and manual control
+- **Complete Automation**: One-click system setup to startup
+- **Multi-process Support**: Stable WebSocket communication and ROS 2 integration
 
 ## Migrated Components
 
@@ -81,9 +147,16 @@ See `config/drone_specs.yaml` for detailed specifications.
 ## New Components
 
 ### Manual Control System
-- `manual_control/` - Predefined action execution node
-- `action_sequences/` - Action sequence definitions
-- `control_interface/` - Control interface
+- `manual_control/` - Drone simulator and control system
+  - `simple_simulator.py`: Physics simulation
+  - `optimized_simulator.py`: Optimized simulation
+  - `action_executor.py`: Action execution
+  - `state_monitor.py`: State monitoring
+
+### Web Visualization System
+- `web_viz/` - Browser-based 3D visualization and control interface
+  - `server.py`: WebSocket server and ROS 2 integration
+  - `index.html`: Web UI frontend
 
 ## Setup Instructions
 
@@ -107,13 +180,10 @@ docker-compose build
 
 ### 4. Manual Execution (Optional)
 ```bash
-# Start simulation
-docker-compose up -d simulator
-
 # Start bridge nodes
 docker-compose up -d bridge
 
-# Start manual control node
+# Start manual control nodes
 docker-compose up -d manual_control
 ```
 
@@ -127,20 +197,45 @@ cd drone_manual_control
 docker-compose build
 ```
 
-2. **Start Simulation**
+2. **System Startup**
 ```bash
 docker-compose up -d
 ```
 
-3. **Execute Manual Control**
+3. **Web UI Access**
 ```bash
-docker-compose up -d manual_control
+# Access in browser
+http://localhost:8080
 ```
+
+### Web Visualization Usage
+1. **Access in browser after system startup**
+```
+http://localhost:8080
+```
+
+2. **Available Features**
+- Real-time 3D drone visualization
+- Manual control buttons (ascend, descend, forward, backward, left, right)
+- Real-time drone status display (position, velocity)
+- WebSocket connection status display
+
+3. **Control Buttons**
+- **Take Off**: Make drone ascend
+- **Land**: Make drone descend
+- **Forward/Backward**: Forward/backward movement
+- **Left/Right**: Left/right movement
+- **Up/Down**: Ascend/descend (moderate)
+- **Stop**: Stop all movement
+- **Hover**: Maintain hovering state
 
 ### Log Monitoring
 ```bash
 # Manual control node logs
 docker-compose logs -f manual_control
+
+# Web visualization logs
+docker-compose logs -f web_viz
 
 # All node logs
 docker-compose logs -f
@@ -151,56 +246,63 @@ docker-compose logs -f
 docker-compose down
 ```
 
-## Predefined Actions
+## Technical Details
 
-### Basic Movements
-- **Hover**: Maintain hovering (10 seconds)
-- **Takeoff**: Takeoff sequence (5 seconds)
-- **Landing**: Landing sequence (8 seconds)
+### Fixed Issues
+1. **Thrust Calculation Fix**: Removed `abs()` function to properly handle negative throttle values for landing commands
+2. **QoS Setting Unification**: Aligned communication settings between web_viz and simulator
+3. **Data Sharing Improvement**: Optimized data transfer between multi-processes
+4. **Horizontal Movement Support**: Properly handle `linear.x` and `linear.y` commands
+5. **Real-time Updates**: UI position and velocity data updates in real-time
 
-### Movement Actions
-- **Waypoint Forward**: Forward movement 5m (15 seconds)
-- **Waypoint Backward**: Backward movement 5m (15 seconds)
-- **Waypoint Right**: Rightward movement 5m (12 seconds)
-- **Waypoint Left**: Leftward movement 5m (12 seconds)
+### Communication Flow
+1. **Web UI** → **WebSocket** → **ROS 2 Control Node** → **TwistStamped** → **Simulator**
+2. **Simulator** → **PoseStamped/TwistStamped** → **ROS 2 Control Node** → **WebSocket** → **Web UI**
 
-### Pattern Flight
-- **Circle Flight**: Circular flight (radius 5m, 20 seconds)
-- **Square Pattern**: Square pattern flight (40 seconds)
+### Physics Simulation
+- **Gravity**: 9.81 m/s²
+- **Thrust**: Variable thrust (based on control commands)
+- **Mass**: 0.65 kg
+- **Control**: PID control for attitude control
+- **Collision Detection**: Ground collision handling
 
-### Complex Sequences
-- **Takeoff and Hover**: Takeoff → Hovering
-- **Exploration Sequence**: Takeoff → Forward movement
-- **Return to Base**: Return to base → Landing
+## Automation Scripts
 
-## Configuration
+### `scripts/auto_deploy.sh` - Complete Automated Deployment
+- Complete automation from build to startup and health check
+- Flexible operation with options
 
-### Modifying Action Sequences
-Edit `config/action_sequences.yaml` to customize actions:
+### `scripts/quick_start.sh` - Quick Start
+- One-click system startup
+- Browser opens automatically
 
-```yaml
-action_sequences:
-  - name: "custom_hover"
-    action_type: "hover"
-    duration: 15.0  # 15 seconds
-    parameters:
-      target_altitude: 5.0  # 5m altitude
-    next_action: "landing"  # Next action
+### `scripts/build_all.sh` - Step-by-step Build
+- Sequential build of each package
+- Detailed log output
+
+### `scripts/start_system.sh` - System Startup
+- System startup using existing build
+
+## Troubleshooting
+
+### Common Issues
+1. **WebSocket Connection Error**: Stop other processes if port 8080 is in use
+2. **ROS 2 Communication Error**: Check network settings between containers
+3. **UI Not Updating**: Clear browser cache
+
+### Debug Methods
+```bash
+# Real-time log monitoring
+docker-compose logs -f
+
+# Specific container log monitoring
+docker-compose logs -f manual_control
+docker-compose logs -f web_viz
+
+# ROS 2 topic verification in container
+docker-compose exec manual_control bash -c "source /opt/ros/humble/setup.bash && ros2 topic list"
 ```
 
-### Control Parameter Adjustment
-```yaml
-control_parameters:
-  position_p_gain: 1.0
-  position_i_gain: 0.1
-  position_d_gain: 0.05
-  max_velocity: 5.0  # m/s
-```
+## License
 
-### Safety Settings
-```yaml
-safety_parameters:
-  min_altitude: 0.5  # m
-  max_altitude: 50.0  # m
-  max_distance_from_base: 100.0  # m
-```
+This project is released under the MIT License.

@@ -34,6 +34,13 @@ class SimpleDroneSimulator(Node):
         self.orientation = np.array([0.0, 0.0, 0.0])  # roll, pitch, yaw [rad]
         self.angular_velocity = np.array([0.0, 0.0, 0.0])  # wx, wy, wz [rad/s]
         
+        # 制御コマンド
+        self.control_command = np.array([0.0, 0.0, 0.0, 0.0])  # throttle, roll, pitch, yaw
+        
+        # 水平移動コマンド
+        self.horizontal_velocity_x = 0.0  # X軸の目標速度
+        self.horizontal_velocity_y = 0.0  # Y軸の目標速度
+        
         # 物理パラメータ
         self.mass = 0.65  # kg (drone_specs.yamlから)
         self.gravity = 9.81  # m/s²
@@ -86,14 +93,33 @@ class SimpleDroneSimulator(Node):
     
     def _control_callback(self, msg: TwistStamped):
         """制御コマンドコールバック"""
-        # 推力と角度コマンドを処理
-        throttle = msg.twist.linear.z  # Z方向の線形速度を推力として使用
-        roll_cmd = msg.twist.angular.x
-        pitch_cmd = msg.twist.angular.y
-        yaw_cmd = msg.twist.angular.z
+        # 制御コマンドを保存
+        self.control_command[0] = msg.twist.linear.z  # throttle (Z軸)
+        self.control_command[1] = msg.twist.angular.x  # roll
+        self.control_command[2] = msg.twist.angular.y  # pitch
+        self.control_command[3] = msg.twist.angular.z  # yaw
         
-        # 推力計算 (0.0-1.0 -> 0.0-max_thrust)
-        thrust = abs(throttle) * self.max_thrust
+        # 水平移動コマンドを直接速度に変換
+        self.horizontal_velocity_x = msg.twist.linear.x  # X軸の速度
+        self.horizontal_velocity_y = msg.twist.linear.y  # Y軸の速度
+        
+        self.get_logger().info(
+            f"Received control command: throttle={self.control_command[0]:.2f}, "
+            f"roll={self.control_command[1]:.2f}, pitch={self.control_command[2]:.2f}, "
+            f"yaw={self.control_command[3]:.2f}, vx={self.horizontal_velocity_x:.2f}, "
+            f"vy={self.horizontal_velocity_y:.2f}"
+        )
+    
+    def _simulation_step(self):
+        """シミュレーションステップ"""
+        # 制御コマンドの処理
+        throttle = self.control_command[0]
+        roll_cmd = self.control_command[1]
+        pitch_cmd = self.control_command[2]
+        yaw_cmd = self.control_command[3]
+        
+        # 推力計算 (負の値を許可してlandingコマンドに対応)
+        thrust = throttle * self.max_thrust
         
         # 角度制御 (簡易的なPID制御)
         roll_error = roll_cmd - self.orientation[0]
@@ -118,6 +144,10 @@ class SimpleDroneSimulator(Node):
         # 速度更新
         self.velocity += acceleration * 0.01  # dt = 0.01s
         
+        # 水平移動コマンドを直接適用
+        self.velocity[0] = self.horizontal_velocity_x * self.max_thrust / self.mass  # X軸速度
+        self.velocity[1] = self.horizontal_velocity_y * self.max_thrust / self.mass  # Y軸速度
+        
         # 位置更新
         self.position += self.velocity * 0.01
         
@@ -128,9 +158,7 @@ class SimpleDroneSimulator(Node):
         if self.position[2] < 0.0:
             self.position[2] = 0.0
             self.velocity[2] = 0.0
-    
-    def _simulation_step(self):
-        """シミュレーションステップ"""
+        
         # 位置・姿勢パブリッシュ
         pose_msg = PoseStamped()
         pose_msg.header.stamp = self.get_clock().now().to_msg()

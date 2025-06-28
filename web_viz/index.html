@@ -124,52 +124,92 @@
 
         <div class="controls">
             <h3>Manual Control</h3>
-            <button class="control-button" onclick="sendCommand('takeoff')">Takeoff</button>
-            <button class="control-button" onclick="sendCommand('land')">Land</button>
-            <button class="control-button" onclick="sendCommand('hover')">Hover</button>
-            <button class="control-button" onclick="sendCommand('emergency_stop')">Emergency Stop</button>
+            <div style="margin-bottom: 10px;">
+                <button class="control-button" onclick="sendCommand('take_off')">Take Off</button>
+                <button class="control-button" onclick="sendCommand('land')">Land</button>
+                <button class="control-button" onclick="sendCommand('hover')">Hover</button>
+                <button class="control-button" onclick="sendCommand('stop')">Stop</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button class="control-button" onclick="sendCommand('up')">Up</button>
+                <button class="control-button" onclick="sendCommand('down')">Down</button>
+            </div>
+            <div style="margin-bottom: 10px;">
+                <button class="control-button" onclick="sendCommand('forward')">Forward</button>
+                <button class="control-button" onclick="sendCommand('backward')">Backward</button>
+            </div>
+            <div>
+                <button class="control-button" onclick="sendCommand('left')">Left</button>
+                <button class="control-button" onclick="sendCommand('right')">Right</button>
+            </div>
         </div>
     </div>
 
     <script>
-        let ws = null;
+        let ws;
         let isConnected = false;
-
-        function connect() {
-            ws = new WebSocket('ws://localhost:8081');
-            
-            ws.onopen = function() {
-                isConnected = true;
-                updateStatus('Connected to ROS 2', true);
-            };
-            
-            ws.onmessage = function(event) {
-                const data = JSON.parse(event.data);
-                updateData(data);
-            };
-            
-            ws.onclose = function() {
+        
+        function connectWebSocket() {
+            try {
+                ws = new WebSocket('ws://localhost:8765');
+                
+                ws.onopen = function() {
+                    console.log('WebSocket connected');
+                    isConnected = true;
+                    updateConnectionStatus();
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        updateDroneData(data);
+                    } catch (e) {
+                        console.error('Error parsing message:', e);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('WebSocket disconnected');
+                    isConnected = false;
+                    updateConnectionStatus();
+                    // 自動再接続
+                    setTimeout(connectWebSocket, 3000);
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    isConnected = false;
+                    updateConnectionStatus();
+                };
+            } catch (e) {
+                console.error('Error creating WebSocket:', e);
                 isConnected = false;
-                updateStatus('Disconnected from ROS 2', false);
-                // 再接続を試行
-                setTimeout(connect, 3000);
-            };
-            
-            ws.onerror = function(error) {
-                console.error('WebSocket error:', error);
-                updateStatus('Connection error', false);
-            };
+                updateConnectionStatus();
+            }
         }
-
-        function updateStatus(text, connected) {
-            const statusDiv = document.getElementById('status');
-            const statusText = document.getElementById('status-text');
-            
-            statusText.textContent = text;
-            statusDiv.className = connected ? 'status connected' : 'status disconnected';
+        
+        function updateConnectionStatus() {
+            const statusElement = document.getElementById('status-text');
+            if (isConnected) {
+                statusElement.textContent = 'Connected to ROS 2';
+                statusElement.style.color = 'green';
+            } else {
+                statusElement.textContent = 'Disconnected from ROS 2';
+                statusElement.style.color = 'red';
+            }
         }
-
-        function updateData(data) {
+        
+        function sendCommand(command) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = JSON.stringify({command: command});
+                console.log('Sending command:', message);
+                ws.send(message);
+            } else {
+                console.error('WebSocket not connected');
+            }
+        }
+        
+        function updateDroneData(data) {
             if (data.position) {
                 const pos = data.position;
                 document.getElementById('position').textContent = 
@@ -189,22 +229,11 @@
                     `Drone at: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`;
             }
         }
-
-        function sendCommand(command) {
-            if (ws && isConnected) {
-                ws.send(JSON.stringify({command: command}));
-            } else {
-                alert('Not connected to ROS 2');
-            }
-        }
-
-        // 接続開始
-        connect();
-
-        // ページ読み込み時の初期化
-        document.addEventListener('DOMContentLoaded', function() {
-            updateStatus('Connecting to ROS 2...', false);
-        });
+        
+        // ページ読み込み時にWebSocket接続を開始
+        window.onload = function() {
+            connectWebSocket();
+        };
     </script>
 </body>
 </html> 

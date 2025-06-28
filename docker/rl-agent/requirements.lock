@@ -1,4 +1,0 @@
-# docker/rl-agent/requirements.lock
-# ---------- P5-fix ----------
-gymnasium==0.28.1
-numpy==1.26.4

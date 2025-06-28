@@ -2,8 +2,7 @@
 
 > **English**: [README.en.md](README.en.md)
 
-この環境は、事前定義された行動をドローンに実行させるための手動制御システムです。
-元の強化学習環境から再利用可能なコンポーネントを移行して構築されています。
+この環境は、ROS 2 Humbleベースのドローン手動制御システムです。Webブラウザからリアルタイムでドローンを制御し、3D可視化でドローンの状態を監視できます。
 
 ## 🚀 クイックスタート
 
@@ -33,6 +32,26 @@
 ./scripts/auto_deploy.sh --start-only   # 既存ビルドで起動のみ
 ./scripts/auto_deploy.sh --no-web-viz   # Web可視化を無効にして起動
 ```
+
+## 🎮 動作確認済み機能
+
+### ドローン制御コマンド
+✅ **Take Off**: ドローンが上昇（Z軸正方向）  
+✅ **Land**: ドローンが下降（Z軸負方向）  
+✅ **Forward**: ドローンが前進（X軸正方向）  
+✅ **Backward**: ドローンが後退（X軸負方向）  
+✅ **Left**: ドローンが左移動（Y軸正方向）  
+✅ **Right**: ドローンが右移動（Y軸負方向）  
+✅ **Up**: ドローンが上昇（Z軸正方向、中程度）  
+✅ **Down**: ドローンが下降（Z軸負方向、中程度）  
+✅ **Stop**: すべての移動を停止  
+✅ **Hover**: ホバリング状態の維持  
+
+### リアルタイム表示
+✅ **位置情報**: X, Y, Z座標のリアルタイム更新  
+✅ **速度情報**: X, Y, Z軸の速度のリアルタイム更新  
+✅ **WebSocket通信**: 安定したリアルタイム通信  
+✅ **3D可視化**: ブラウザベースのドローン位置表示  
 
 ## 専用ドローン機体情報
 
@@ -75,15 +94,31 @@
 
 詳細仕様は `config/drone_specs.yaml` を参照してください。
 
+## システム構成
+
+### コンテナ構成
+- **drone_msgs**: カスタムメッセージ定義
+- **bridge**: ROS 2通信ブリッジ
+- **manual_control**: ドローンシミュレーターと制御システム
+- **web_viz**: Web可視化と制御インターフェース
+
+### 技術スタック
+- **ROS 2 Humble**: 基盤となる通信システム
+- **Docker Compose**: マルチコンテナ環境
+- **WebSocket**: リアルタイムなWeb UI通信
+- **Python**: シミュレーションと制御ロジック
+- **JavaScript**: Web UIフロントエンド
+
 ## 特徴
 
-- **事前定義行動実行**: ホバリング、離陸、着陸、軌道追従などの基本動作
+- **リアルタイム制御**: Webブラウザから即座にドローンを制御
+- **物理シミュレーション**: 重力、推力、制御を考慮したリアルisticな動作
 - **ROS 2 Humble対応**: 最新のROS 2フレームワークを使用
-- **シンプルシミュレーション**: 軽量なPythonベースシミュレーター
 - **Docker統合**: 再現可能な開発環境
 - **モジュラー設計**: 既存のブリッジコンポーネントを再利用
 - **Web可視化**: ブラウザベースの3D可視化と手動制御
 - **完全自動化**: ワンクリックでシステム構築から起動まで
+- **マルチプロセス対応**: 安定したWebSocket通信とROS 2統合
 
 ## 移行されたコンポーネント
 
@@ -99,11 +134,16 @@
 ## 新規追加コンポーネント
 
 ### 手動制御システム
-- `manual_control/` - 事前定義行動実行ノード
-- `action_sequences/` - 行動シーケンス定義
+- `manual_control/` - ドローンシミュレーターと制御システム
+  - `simple_simulator.py`: 物理シミュレーション
+  - `optimized_simulator.py`: 最適化されたシミュレーション
+  - `action_executor.py`: アクション実行
+  - `state_monitor.py`: 状態監視
 
 ### Web可視化システム
 - `web_viz/` - ブラウザベースの3D可視化と制御インターフェース
+  - `server.py`: WebSocketサーバーとROS 2統合
+  - `index.html`: Web UIフロントエンド
 
 ## セットアップ手順
 
@@ -149,9 +189,10 @@ docker-compose build
 docker-compose up -d
 ```
 
-3. **手動制御実行**
+3. **Web UIアクセス**
 ```bash
-docker-compose up -d manual_control
+# ブラウザで以下にアクセス
+http://localhost:8080
 ```
 
 ### Web可視化の使用
@@ -162,8 +203,18 @@ http://localhost:8080
 
 2. **利用可能な機能**
 - リアルタイム3Dドローン可視化
-- 手動制御ボタン（上昇、下降、前進、後退、左旋回、右旋回）
+- 手動制御ボタン（上昇、下降、前進、後退、左移動、右移動）
 - ドローン状態のリアルタイム表示（位置、速度）
+- WebSocket接続状態の表示
+
+3. **制御ボタン**
+- **Take Off**: ドローンを上昇させる
+- **Land**: ドローンを下降させる
+- **Forward/Backward**: 前進/後退
+- **Left/Right**: 左移動/右移動
+- **Up/Down**: 上昇/下降（中程度）
+- **Stop**: すべての移動を停止
+- **Hover**: ホバリング状態を維持
 
 ### ログの確認
 ```bash
@@ -182,6 +233,26 @@ docker-compose logs -f
 docker-compose down
 ```
 
+## 技術的な詳細
+
+### 修正済みの問題
+1. **推力計算の修正**: `abs()`関数を削除して、landingコマンドの負のスロットル値を正しく処理
+2. **QoS設定の統一**: web_vizとシミュレーター間の通信設定を一致
+3. **データ共有の改善**: マルチプロセス間のデータ転送を最適化
+4. **水平移動の対応**: `linear.x`と`linear.y`コマンドを正しく処理
+5. **リアルタイム更新**: UIの位置と速度データがリアルタイムで更新
+
+### 通信フロー
+1. **Web UI** → **WebSocket** → **ROS 2 Control Node** → **TwistStamped** → **Simulator**
+2. **Simulator** → **PoseStamped/TwistStamped** → **ROS 2 Control Node** → **WebSocket** → **Web UI**
+
+### 物理シミュレーション
+- **重力**: 9.81 m/s²
+- **推力**: 可変推力（制御コマンドに応じて）
+- **質量**: 0.65 kg
+- **制御**: PID制御による姿勢制御
+- **衝突検出**: 地面との衝突処理
+
 ## 自動化スクリプト
 
 ### `scripts/auto_deploy.sh` - 完全自動デプロイ
@@ -198,6 +269,29 @@ docker-compose down
 
 ### `scripts/start_system.sh` - システム起動
 - 既存ビルドを使用してシステム起動
-- ヘルスチェック付き
+
+## トラブルシューティング
+
+### よくある問題
+1. **WebSocket接続エラー**: ポート8080が使用中の場合、他のプロセスを停止
+2. **ROS 2通信エラー**: コンテナ間のネットワーク設定を確認
+3. **UIが更新されない**: ブラウザのキャッシュをクリア
+
+### デバッグ方法
+```bash
+# リアルタイムログ確認
+docker-compose logs -f
+
+# 特定コンテナのログ確認
+docker-compose logs -f manual_control
+docker-compose logs -f web_viz
+
+# コンテナ内でのROS 2トピック確認
+docker-compose exec manual_control bash -c "source /opt/ros/humble/setup.bash && ros2 topic list"
+```
+
+## ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
 
 # Manual control CI trigger

@@ -52,7 +52,7 @@ services:
       dockerfile: docker/Dockerfile.web_viz
     ports:
       - "8080:8080"
-      - "8081:8081"
+      - "8765:8765"
     volumes:
       - ./web_viz:/workspace/web_viz:ro
       - ./install:/workspace/install
