@@ -4,6 +4,19 @@
 
 This environment provides a ROS 2 Humble-based drone manual control system. You can control drones in real-time from a web browser and monitor drone status with 3D visualization.
 
+## 🎯 Environment Purpose
+
+**Reinforcement Learning Efficiency Enhancement - Drone Command Responsiveness Verification Environment**
+
+This environment is designed for verifying drone command responsiveness in reinforcement learning algorithm development and validation (SAC, PPO, DQN, etc.). It allows manual verification of drone responsiveness, control accuracy, and physics simulation validity before implementing reinforcement learning, significantly improving learning efficiency and success rates.
+
+### Verifiable Items
+- **Command Responsiveness**: Immediate response of the airframe to control commands
+- **Control Accuracy**: Accuracy in reaching target positions and velocities
+- **Physical Properties**: Validity of gravity, thrust, and inertia
+- **Stability**: Stability during long-duration flight
+- **Safety**: Confirmation of operation within limits
+
 ## 🚀 Quick Start
 
 ### Fully Automated Deployment (Recommended)
@@ -138,6 +151,9 @@ See `config/drone_specs.yaml` for detailed specifications.
 - **Intuitive 3D Operation**: Free camera control with mouse operations
 - **Camera Follow Function**: Automatic drone tracking camera mode
 - **Complete Reset Function**: Reliable drone reset to initial position
+- **Reinforcement Learning Support**: Optimized for SAC, PPO, DQN algorithm development and validation
+- **Command Responsiveness Verification**: Pre-verification of airframe control accuracy and responsiveness
+- **Learning Efficiency Enhancement**: Improved reinforcement learning success rates through manual verification
 
 ## Migrated Components
 
@@ -260,6 +276,22 @@ http://localhost:8080
 - Intuitive operation guide display
 - Manual angle adjustment possible even in camera follow mode
 
+### Usage for Reinforcement Learning Developers
+1. **Pre-verification of Airframe Responsiveness**
+   - Confirm airframe responsiveness through manual control
+   - Measure delay between control commands and actual movement
+   - Verify validity of physical parameters
+
+2. **Reward Function Design Support**
+   - Evaluate difficulty of goal achievement through manual control
+   - Measure execution time and accuracy of each action
+   - Collect reference data for reward weighting
+
+3. **Learning Environment Adjustment**
+   - Set ranges for state space and action space
+   - Optimize episode length and termination conditions
+   - Design initial state distribution
+
 ### Log Monitoring
 ```bash
 # Manual control node logs
@@ -296,6 +328,14 @@ docker-compose down
 4. **Camera Follow Function**: Toggleable drone tracking
 5. **Intuitive Operation**: Browser zoom prevention, improved mouse operation
 6. **Beautiful UI**: White drone 3D model, glossy effects, grid display
+
+### Reinforcement Learning Support Features
+1. **Gym API Compatibility**: OpenAI Gym-style interface
+2. **Dynamic Actuator Mapping**: Support for SAC and other algorithms
+3. **State Space Standardization**: Normalization of position, velocity, and attitude
+4. **Continuous Action Space**: Support for continuous thrust control
+5. **Reward Function Verification**: Validation of reward design through manual control
+6. **Episode Management**: Automatic reset and episode termination conditions
 
 ### Communication Flow
 1. **Web UI** → **WebSocket** → **ROS 2 Control Node** → **TwistStamped** → **Simulator**
