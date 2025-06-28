@@ -19,7 +19,33 @@ class SimpleDroneSimulator(Node):
     """
     
     def __init__(self):
+        """初期化"""
         super().__init__('simple_drone_simulator')
+        
+        # 物理パラメータ
+        self.mass = 1.0  # kg
+        self.gravity = 9.81  # m/s^2
+        self.max_thrust = 20.0  # N
+        
+        # 制御パラメータ
+        self.roll_p = 2.0
+        self.pitch_p = 2.0
+        self.yaw_p = 2.0
+        
+        # 状態変数
+        self.position = np.array([0.0, 0.0, 0.0])
+        self.velocity = np.array([0.0, 0.0, 0.0])
+        self.orientation = np.array([0.0, 0.0, 0.0])  # roll, pitch, yaw
+        self.angular_velocity = np.array([0.0, 0.0, 0.0])
+        
+        # 制御コマンド
+        self.control_command = np.array([0.0, 0.0, 0.0, 0.0])  # throttle, roll, pitch, yaw
+        self.horizontal_velocity_x = 0.0
+        self.horizontal_velocity_y = 0.0
+        
+        # リセット関連
+        self.reset_time = 0.0
+        self.reset_cooldown = 1.0  # リセット後1秒間は制御コマンドを無視
         
         # QoS設定
         self.qos_profile = QoSProfile(
@@ -28,37 +54,62 @@ class SimpleDroneSimulator(Node):
             history=HistoryPolicy.KEEP_LAST
         )
         
-        # ドローンの状態
-        self.position = np.array([0.0, 0.0, 0.0])  # x, y, z [m]
-        self.velocity = np.array([0.0, 0.0, 0.0])  # vx, vy, vz [m/s]
-        self.orientation = np.array([0.0, 0.0, 0.0])  # roll, pitch, yaw [rad]
-        self.angular_velocity = np.array([0.0, 0.0, 0.0])  # wx, wy, wz [rad/s]
-        
-        # 制御コマンド
-        self.control_command = np.array([0.0, 0.0, 0.0, 0.0])  # throttle, roll, pitch, yaw
-        
-        # 水平移動コマンド
-        self.horizontal_velocity_x = 0.0  # X軸の目標速度
-        self.horizontal_velocity_y = 0.0  # Y軸の目標速度
-        
-        # 物理パラメータ
-        self.mass = 0.65  # kg (drone_specs.yamlから)
-        self.gravity = 9.81  # m/s²
-        self.thrust_constant = 1.6  # N/unit (drone_specs.yamlから)
-        self.max_thrust = 15.0  # N (概算)
-        
-        # 制御パラメータ
-        self.roll_p = 4.8
-        self.pitch_p = 4.8
-        self.yaw_p = 3.2
-        
-        # サブスクライバー・パブリッシャー設定
+        # 通信設定
         self._setup_communication()
         
-        # シミュレーションタイマー (100Hz)
+        # タイマー設定 (100Hz)
         self.timer = self.create_timer(0.01, self._simulation_step)
         
         self.get_logger().info("Simple Drone Simulator initialized")
+    
+    def reset_drone(self):
+        """ドローンを初期位置にリスポーン"""
+        # 位置と速度をリセットして即座に(0,0,0)にリスポーン
+        old_position = self.position.copy()
+        self.position = np.array([0.0, 0.0, 0.0])
+        self.velocity = np.array([0.0, 0.0, 0.0])  # 速度もリセット
+        
+        # リセット時間を記録
+        self.reset_time = self.get_clock().now().nanoseconds / 1e9
+        
+        self.get_logger().info(f"Drone respawned from [{old_position[0]:.2f}, {old_position[1]:.2f}, {old_position[2]:.2f}] to [0.00, 0.00, 0.00]")
+        self.get_logger().info(f"Position array after reset: {self.position}")
+        self.get_logger().info(f"Reset cooldown started at {self.reset_time:.2f}s")
+        
+        # 位置・速度を即時パブリッシュ
+        self._publish_state()
+    
+    def _publish_state(self):
+        """現在の位置・速度を即時パブリッシュ"""
+        pose_msg = PoseStamped()
+        pose_msg.header.stamp = self.get_clock().now().to_msg()
+        pose_msg.header.frame_id = "world"
+        pose_msg.pose.position.x = self.position[0]
+        pose_msg.pose.position.y = self.position[1]
+        pose_msg.pose.position.z = self.position[2]
+        # クォータニオン計算（簡易）
+        import math
+        cy = math.cos(self.orientation[2] * 0.5)
+        sy = math.sin(self.orientation[2] * 0.5)
+        cp = math.cos(self.orientation[1] * 0.5)
+        sp = math.sin(self.orientation[1] * 0.5)
+        cr = math.cos(self.orientation[0] * 0.5)
+        sr = math.sin(self.orientation[0] * 0.5)
+        pose_msg.pose.orientation.w = cy * cp * cr + sy * sp * sr
+        pose_msg.pose.orientation.x = cy * cp * sr - sy * sp * cr
+        pose_msg.pose.orientation.y = sy * cp * sr + cy * sp * cr
+        pose_msg.pose.orientation.z = sy * cp * cr - cy * sp * sr
+        self.pose_pub.publish(pose_msg)
+        twist_msg = TwistStamped()
+        twist_msg.header.stamp = self.get_clock().now().to_msg()
+        twist_msg.header.frame_id = "world"
+        twist_msg.twist.linear.x = self.velocity[0]
+        twist_msg.twist.linear.y = self.velocity[1]
+        twist_msg.twist.linear.z = self.velocity[2]
+        twist_msg.twist.angular.x = self.angular_velocity[0]
+        twist_msg.twist.angular.y = self.angular_velocity[1]
+        twist_msg.twist.angular.z = self.angular_velocity[2]
+        self.twist_pub.publish(twist_msg)
     
     def _setup_communication(self):
         """通信設定"""
@@ -93,6 +144,12 @@ class SimpleDroneSimulator(Node):
     
     def _control_callback(self, msg: TwistStamped):
         """制御コマンドコールバック"""
+        # リセット後のクールダウン期間中は制御コマンドを無視
+        current_time = self.get_clock().now().nanoseconds / 1e9
+        if current_time - self.reset_time < self.reset_cooldown:
+            self.get_logger().debug(f"Ignoring control command during reset cooldown ({current_time - self.reset_time:.2f}s remaining)")
+            return
+        
         # 制御コマンドを保存
         self.control_command[0] = msg.twist.linear.z  # throttle (Z軸)
         self.control_command[1] = msg.twist.angular.x  # roll
@@ -102,6 +159,21 @@ class SimpleDroneSimulator(Node):
         # 水平移動コマンドを直接速度に変換
         self.horizontal_velocity_x = msg.twist.linear.x  # X軸の速度
         self.horizontal_velocity_y = msg.twist.linear.y  # Y軸の速度
+        
+        # リセットコマンドの検出（すべての値が0の場合）
+        if (abs(msg.twist.linear.x) < 0.01 and abs(msg.twist.linear.y) < 0.01 and 
+            abs(msg.twist.linear.z) < 0.01 and abs(msg.twist.angular.x) < 0.01 and 
+            abs(msg.twist.angular.y) < 0.01 and abs(msg.twist.angular.z) < 0.01):
+            # 即座にリセット実行
+            self.get_logger().info("Reset command detected - executing immediate reset")
+            self.get_logger().info(f"Current position before reset: [{self.position[0]:.2f}, {self.position[1]:.2f}, {self.position[2]:.2f}]")
+            self.reset_drone()
+            # 制御コマンドもリセット
+            self.control_command = np.array([0.0, 0.0, 0.0, 0.0])
+            self.horizontal_velocity_x = 0.0
+            self.horizontal_velocity_y = 0.0
+            self.get_logger().info(f"Position after reset: [{self.position[0]:.2f}, {self.position[1]:.2f}, {self.position[2]:.2f}]")
+            return
         
         self.get_logger().info(
             f"Received control command: throttle={self.control_command[0]:.2f}, "

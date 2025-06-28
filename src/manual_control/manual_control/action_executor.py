@@ -29,6 +29,7 @@ class ActionType(Enum):
     CIRCLE = "circle"
     SQUARE = "square"
     MANUAL = "manual"
+    RESET = "reset"
 
 
 @dataclass
@@ -161,6 +162,29 @@ class ActionExecutorNode(Node):
         self.get_logger().info(f"Started action: {action_name}")
         return True
     
+    def reset_drone(self) -> None:
+        """ドローンをリセット（位置のみ）"""
+        # 現在の行動を停止
+        self.current_action = None
+        self.action_start_time = None
+        
+        # リセットコマンドを送信（位置のみリセット）
+        command = TwistStamped()
+        command.header = Header()
+        command.header.stamp = self.get_clock().now().to_msg()
+        command.header.frame_id = "drone_base_link"
+        
+        # 位置をリセットするための特別なコマンドとして、すべての値を0に送信
+        command.twist.linear.x = 0.0
+        command.twist.linear.y = 0.0
+        command.twist.linear.z = 0.0
+        command.twist.angular.x = 0.0
+        command.twist.angular.y = 0.0
+        command.twist.angular.z = 0.0
+        
+        self.control_pub.publish(command)
+        self.get_logger().info("Reset command sent to drone (position only)")
+    
     def _execute_action(self) -> None:
         """行動実行（タイマーコールバック）"""
         if self.current_action is None:
@@ -280,6 +304,15 @@ class ActionExecutorNode(Node):
                 command.twist.angular.x = 0.0
                 command.twist.angular.y = 0.0
                 command.twist.angular.z = 0.0
+                
+        elif self.current_action.action_type == ActionType.RESET:
+            # リセット制御
+            command.twist.linear.x = 0.0
+            command.twist.linear.y = 0.0
+            command.twist.linear.z = 0.0
+            command.twist.angular.x = 0.0
+            command.twist.angular.y = 0.0
+            command.twist.angular.z = 0.0
         
         return command
     

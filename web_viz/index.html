@@ -2,6 +2,7 @@
 <html>
 <head>
     <title>Drone Visualization</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body {
             margin: 0;
@@ -12,7 +13,7 @@
             font-size: 14px;
         }
         .container {
-            max-width: 800px;
+            max-width: 1200px;
             margin: 0 auto;
         }
         .header {
@@ -61,11 +62,14 @@
             padding: 20px;
             border-radius: 5px;
             text-align: center;
-            min-height: 200px;
+            min-height: 400px;
+            position: relative;
         }
-        .drone-icon {
-            font-size: 48px;
-            margin: 20px 0;
+        #threejs-container {
+            width: 100%;
+            height: 400px;
+            border: 1px solid #555;
+            border-radius: 5px;
         }
         .controls {
             background-color: #333;
@@ -89,13 +93,22 @@
             background-color: #555;
             cursor: not-allowed;
         }
+        .info-panel {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🚁 Drone Manual Control Visualization</h1>
-            <p>Real-time drone position and velocity monitoring</p>
+            <p>Real-time drone position and velocity monitoring with 3D visualization</p>
         </div>
 
         <div id="status" class="status disconnected">
@@ -118,8 +131,12 @@
 
         <div class="visualization">
             <h3>3D Visualization</h3>
-            <div class="drone-icon">🚁</div>
-            <div id="visualization-text">Waiting for data...</div>
+            <div id="threejs-container"></div>
+            <div class="info-panel">
+                <div>Mouse: Rotate view</div>
+                <div>Scroll: Zoom</div>
+                <div>Right-click: Pan</div>
+            </div>
         </div>
 
         <div class="controls">
@@ -129,6 +146,7 @@
                 <button class="control-button" onclick="sendCommand('land')">Land</button>
                 <button class="control-button" onclick="sendCommand('hover')">Hover</button>
                 <button class="control-button" onclick="sendCommand('stop')">Stop</button>
+                <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
             </div>
             <div style="margin-bottom: 10px;">
                 <button class="control-button" onclick="sendCommand('up')">Up</button>
@@ -138,9 +156,12 @@
                 <button class="control-button" onclick="sendCommand('forward')">Forward</button>
                 <button class="control-button" onclick="sendCommand('backward')">Backward</button>
             </div>
-            <div>
+            <div style="margin-bottom: 10px;">
                 <button class="control-button" onclick="sendCommand('left')">Left</button>
                 <button class="control-button" onclick="sendCommand('right')">Right</button>
+            </div>
+            <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
+                <button id="camera-follow-btn" class="control-button" onclick="toggleCameraFollow()" style="background-color: #4CAF50;">カメラ追従: ON</button>
             </div>
         </div>
     </div>
@@ -148,6 +169,206 @@
     <script>
         let ws;
         let isConnected = false;
+        
+        // Three.js variables
+        let scene, camera, renderer, drone, grid;
+        let dronePosition = { x: 0, y: 0, z: 0 };
+        
+        // Initialize Three.js scene
+        function initThreeJS() {
+            const container = document.getElementById('threejs-container');
+            
+            // Scene
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x1a1a1a);
+            
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
+            camera.position.set(10, 10, 10);
+            camera.lookAt(0, 0, 0);
+            
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(container.clientWidth, container.clientHeight);
+            container.appendChild(renderer.domElement);
+            
+            // Lighting
+            const ambientLight = new THREE.AmbientLight(0x404040, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 10, 5);
+            scene.add(directionalLight);
+            
+            // Grid
+            const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+            scene.add(gridHelper);
+            
+            // Ground plane
+            const groundGeometry = new THREE.PlaneGeometry(20, 20);
+            const groundMaterial = new THREE.MeshLambertMaterial({ 
+                color: 0x333333, 
+                transparent: true, 
+                opacity: 0.3 
+            });
+            const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+            
+            // Drone model (simple quadcopter)
+            createDrone();
+            
+            // Camera controls
+            let isMouseDown = false;
+            let mouseX = 0, mouseY = 0;
+            let cameraDistance = 8;
+            let cameraAngleX = 0.3;
+            let cameraAngleY = 0.2;
+            let cameraFollowMode = true; // カメラ追従モード
+            let manualCameraPosition = { x: 0, y: 0, z: 0 }; // 手動カメラ位置
+            
+            container.addEventListener('mousedown', function(e) {
+                isMouseDown = true;
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+                cameraFollowMode = false; // マウス操作時に手動モードに切り替え
+            });
+            
+            container.addEventListener('mouseup', function() {
+                isMouseDown = false;
+            });
+            
+            container.addEventListener('mousemove', function(e) {
+                if (isMouseDown) {
+                    const deltaX = e.clientX - mouseX;
+                    const deltaY = e.clientY - mouseY;
+                    
+                    cameraAngleY += deltaX * 0.01;
+                    cameraAngleX += deltaY * 0.01;
+                    cameraAngleX = Math.max(-Math.PI/2, Math.min(Math.PI/2, cameraAngleX));
+                    
+                    updateCamera();
+                    
+                    mouseX = e.clientX;
+                    mouseY = e.clientY;
+                }
+            });
+            
+            container.addEventListener('wheel', function(e) {
+                cameraDistance += e.deltaY * 0.01;
+                cameraDistance = Math.max(3, Math.min(50, cameraDistance));
+                updateCamera();
+            });
+            
+            function updateCamera() {
+                if (cameraFollowMode && dronePosition) {
+                    // ドローン追従モード
+                    const targetX = dronePosition.x;
+                    const targetY = dronePosition.z; // YとZを入れ替え
+                    const targetZ = dronePosition.y;
+                    
+                    camera.position.x = targetX + cameraDistance * Math.cos(cameraAngleX) * Math.sin(cameraAngleY);
+                    camera.position.y = targetY + cameraDistance * Math.sin(cameraAngleX);
+                    camera.position.z = targetZ + cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+                    camera.lookAt(targetX, targetY, targetZ);
+                } else {
+                    // 手動カメラモード
+                    camera.position.x = cameraDistance * Math.cos(cameraAngleX) * Math.sin(cameraAngleY);
+                    camera.position.y = cameraDistance * Math.sin(cameraAngleX);
+                    camera.position.z = cameraDistance * Math.cos(cameraAngleX) * Math.cos(cameraAngleY);
+                    camera.lookAt(0, 0, 0);
+                }
+            }
+            
+            // カメラ追従モード切り替え関数
+            function toggleCameraFollow() {
+                cameraFollowMode = !cameraFollowMode;
+                const button = document.getElementById('camera-follow-btn');
+                if (cameraFollowMode) {
+                    button.textContent = 'カメラ追従: ON';
+                    button.style.backgroundColor = '#4CAF50';
+                } else {
+                    button.textContent = 'カメラ追従: OFF';
+                    button.style.backgroundColor = '#f44336';
+                }
+                updateCamera();
+            }
+            
+            // Animation loop
+            function animate() {
+                requestAnimationFrame(animate);
+                if (cameraFollowMode) {
+                    updateCamera();
+                }
+                renderer.render(scene, camera);
+            }
+            animate();
+            
+            // 初期カメラ位置を設定
+            updateCamera();
+        }
+        
+        function createDrone() {
+            // Drone body
+            const bodyGeometry = new THREE.BoxGeometry(0.5, 0.1, 0.5);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xffffff,  // 白色に変更
+                shininess: 100,   // 光沢を追加
+                specular: 0x444444 // 反射光を追加
+            });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            
+            // Rotors
+            const rotorGeometry = new THREE.CylinderGeometry(0.1, 0.1, 0.02, 8);
+            const rotorMaterial = new THREE.MeshLambertMaterial({ color: 0x333333 });
+            
+            const rotor1 = new THREE.Mesh(rotorGeometry, rotorMaterial);
+            rotor1.position.set(0.3, 0.06, 0.3);
+            body.add(rotor1);
+            
+            const rotor2 = new THREE.Mesh(rotorGeometry, rotorMaterial);
+            rotor2.position.set(-0.3, 0.06, 0.3);
+            body.add(rotor2);
+            
+            const rotor3 = new THREE.Mesh(rotorGeometry, rotorMaterial);
+            rotor3.position.set(0.3, 0.06, -0.3);
+            body.add(rotor3);
+            
+            const rotor4 = new THREE.Mesh(rotorGeometry, rotorMaterial);
+            rotor4.position.set(-0.3, 0.06, -0.3);
+            body.add(rotor4);
+            
+            // Arms
+            const armGeometry = new THREE.CylinderGeometry(0.02, 0.02, 0.6, 8);
+            const armMaterial = new THREE.MeshLambertMaterial({ color: 0xcccccc });
+            
+            const arm1 = new THREE.Mesh(armGeometry, armMaterial);
+            arm1.rotation.z = Math.PI / 4;
+            body.add(arm1);
+            
+            const arm2 = new THREE.Mesh(armGeometry, armMaterial);
+            arm2.rotation.z = -Math.PI / 4;
+            body.add(arm2);
+            
+            drone = body;
+            scene.add(drone);
+            
+            // ドローンに発光効果を追加
+            const droneLight = new THREE.PointLight(0xffffff, 0.5, 3);
+            droneLight.position.set(0, 0.2, 0);
+            drone.add(droneLight);
+        }
+        
+        function updateDronePosition(x, y, z) {
+            dronePosition = { x: x, y: y, z: z };
+            if (drone) {
+                drone.position.set(x, z, y); // Swap Y and Z for proper orientation
+            }
+            // カメラ追従モードの場合はカメラも更新
+            if (cameraFollowMode) {
+                updateCamera();
+            }
+        }
         
         function connectWebSocket() {
             try {
@@ -190,22 +411,15 @@
         
         function updateConnectionStatus() {
             const statusElement = document.getElementById('status-text');
+            const statusDiv = document.getElementById('status');
             if (isConnected) {
                 statusElement.textContent = 'Connected to ROS 2';
-                statusElement.style.color = 'green';
+                statusElement.style.color = '#00ff00';
+                statusDiv.className = 'status connected';
             } else {
                 statusElement.textContent = 'Disconnected from ROS 2';
-                statusElement.style.color = 'red';
-            }
-        }
-        
-        function sendCommand(command) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                const message = JSON.stringify({command: command});
-                console.log('Sending command:', message);
-                ws.send(message);
-            } else {
-                console.error('WebSocket not connected');
+                statusElement.style.color = '#ff0000';
+                statusDiv.className = 'status disconnected';
             }
         }
         
@@ -214,6 +428,13 @@
                 const pos = data.position;
                 document.getElementById('position').textContent = 
                     `${pos.x.toFixed(2)}, ${pos.y.toFixed(2)}, ${pos.z.toFixed(2)}`;
+                updateDronePosition(pos.x, pos.y, pos.z);
+                
+                // リセット状態の検出（位置が(0,0,0)に近い場合）
+                const isReset = Math.abs(pos.x) < 0.01 && Math.abs(pos.y) < 0.01 && Math.abs(pos.z) < 0.01;
+                if (isReset) {
+                    console.log('Reset state detected from ROS data');
+                }
             }
             
             if (data.velocity) {
@@ -221,17 +442,33 @@
                 document.getElementById('velocity').textContent = 
                     `${vel.x.toFixed(2)}, ${vel.y.toFixed(2)}, ${vel.z.toFixed(2)}`;
             }
-
-            // 視覚化テキストの更新
-            if (data.position) {
-                const pos = data.position;
-                document.getElementById('visualization-text').textContent = 
-                    `Drone at: (${pos.x.toFixed(1)}, ${pos.y.toFixed(1)}, ${pos.z.toFixed(1)})`;
+        }
+        
+        function sendCommand(command) {
+            if (isConnected && ws) {
+                const message = JSON.stringify({ command: command });
+                ws.send(message);
+                console.log('Sent command:', command);
+                
+                // リセットコマンドの場合はUIも強制的にリセット
+                if (command === 'reset') {
+                    setTimeout(() => {
+                        // 位置と速度の表示をリセット
+                        document.getElementById('position').textContent = '0.00, 0.00, 0.00';
+                        document.getElementById('velocity').textContent = '0.00, 0.00, 0.00';
+                        // 3Dドローンの位置もリセット
+                        updateDronePosition(0, 0, 0);
+                        console.log('UI reset completed');
+                    }, 100); // 少し遅延を入れて確実に実行
+                }
+            } else {
+                console.error('WebSocket not connected');
             }
         }
         
-        // ページ読み込み時にWebSocket接続を開始
+        // Initialize
         window.onload = function() {
+            initThreeJS();
             connectWebSocket();
         };
     </script>

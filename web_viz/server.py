@@ -146,6 +146,16 @@ class ROS2ControlNode(Node):
             elif command == "right":
                 msg.twist.linear.y = -0.3
                 self.get_logger().info('Setting right command: linear.y = -0.3')
+            elif command == "reset":
+                # リセット: 位置のみをリセット（速度・姿勢は保持）
+                # 位置をリセットするための特別なコマンドとして、すべての値を0に送信
+                msg.twist.linear.x = 0.0
+                msg.twist.linear.y = 0.0
+                msg.twist.linear.z = 0.0
+                msg.twist.angular.x = 0.0
+                msg.twist.angular.y = 0.0
+                msg.twist.angular.z = 0.0
+                self.get_logger().info('Setting reset command: position reset to [0.0, 0.0, 0.0]')
             else:
                 self.get_logger().warn(f'Unknown command: {command}')
                 return
