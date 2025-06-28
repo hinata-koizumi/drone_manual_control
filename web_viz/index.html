@@ -163,49 +163,63 @@
         .visualization {
             background: rgba(51, 51, 51, 0.8);
             backdrop-filter: blur(10px);
-            padding: 20px;
+            padding: 0;
             border-radius: 15px;
             text-align: center;
             min-height: 350px;
             position: relative;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            flex: 2.5;
+            height: auto;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
         .visualization h3 {
             font-family: 'Inter', sans-serif;
             font-weight: 500;
             font-size: 1.2rem;
-            margin: 0 0 15px 0;
+            margin: 0;
             color: rgba(255, 255, 255, 0.9);
             letter-spacing: 0.02em;
+            padding: 20px 0 10px 0;
+            background: rgba(51, 51, 51, 0.7);
+            border-radius: 15px 15px 0 0;
         }
         #threejs-container {
             width: 100%;
-            height: 350px;
-            border: 1px solid #555;
-            border-radius: 5px;
+            flex: 1 1 0;
+            min-height: 0;
+            height: 100%;
+            border: none;
+            border-radius: 0 0 15px 15px;
             user-select: none;
             -webkit-user-select: none;
             -moz-user-select: none;
             -ms-user-select: none;
             cursor: grab;
+            box-sizing: border-box;
+            display: block;
+            margin: 0;
         }
-        
         #threejs-container:active {
             cursor: grabbing;
         }
         .main-content {
-            display: grid;
-            grid-template-columns: 2fr 1fr;
+            display: flex;
             gap: 20px;
             margin-bottom: 20px;
+            align-items: stretch;
+            width: 100%;
         }
         .controls {
             background: rgba(51, 51, 51, 0.8);
             backdrop-filter: blur(10px);
             padding: 15px;
             border-radius: 15px;
-            height: fit-content;
+            flex: 1;
+            height: auto;
             border: 1px solid rgba(255, 255, 255, 0.1);
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
         }
@@ -282,7 +296,6 @@
                     <button class="control-button" onclick="sendCommand('take_off')">Take Off</button>
                     <button class="control-button" onclick="sendCommand('land')">Land</button>
                     <button class="control-button" onclick="sendCommand('hover')">Hover</button>
-                    <button class="control-button" onclick="sendCommand('stop')">Stop</button>
                     <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
                 </div>
                 <div style="margin-bottom: 10px;">
@@ -362,7 +375,12 @@
             
             // Scene
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x1a1a1a);
+            // 明るいグラデーション風の背景色
+            const bgColorTop = new THREE.Color(0x232b3b); // ダークブルー
+            const bgColorBottom = new THREE.Color(0x3a4660); // 明るめブルーグレー
+            // グラデーション風にするため、fogを使って遠方を明るく
+            scene.background = bgColorTop;
+            scene.fog = new THREE.Fog(bgColorBottom, 18, 30);
             
             // Camera
             camera = new THREE.PerspectiveCamera(75, container.clientWidth / container.clientHeight, 0.1, 1000);
@@ -382,16 +400,18 @@
             directionalLight.position.set(10, 10, 5);
             scene.add(directionalLight);
             
-            // Grid
-            const gridHelper = new THREE.GridHelper(20, 20, 0x444444, 0x222222);
+            // Grid（明るめのグリッド線）
+            const gridHelper = new THREE.GridHelper(20, 20, 0x7faaff, 0xcccccc);
+            gridHelper.material.opacity = 0.5;
+            gridHelper.material.transparent = true;
             scene.add(gridHelper);
-            
-            // Ground plane
+
+            // Ground plane（明るいグレー系）
             const groundGeometry = new THREE.PlaneGeometry(20, 20);
             const groundMaterial = new THREE.MeshLambertMaterial({ 
-                color: 0x333333, 
+                color: 0x8fa3bf, // 明るいグレー＋青み
                 transparent: true, 
-                opacity: 0.3 
+                opacity: 0.35 
             });
             const ground = new THREE.Mesh(groundGeometry, groundMaterial);
             ground.rotation.x = -Math.PI / 2;
