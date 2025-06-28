@@ -215,21 +215,54 @@
         }
         .controls {
             background: rgba(51, 51, 51, 0.8);
-            backdrop-filter: blur(10px);
-            padding: 15px;
             border-radius: 15px;
-            flex: 1;
-            height: auto;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            padding: 25px 20px 20px 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+            min-width: 260px;
+            max-width: 350px;
+            margin: 0 auto;
+            position: relative;
         }
-        .controls h3 {
-            font-family: 'Inter', sans-serif;
+        .data-squares-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 18px;
+        }
+        .data-square {
+            background: rgba(255,255,255,0.07);
+            border-radius: 12px;
+            border: 1.5px solid rgba(255,255,255,0.13);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.13);
+            width: 110px;
+            height: 110px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .data-square h3 {
+            font-size: 1.0rem;
+            margin: 0 0 6px 0;
+            color: #fff;
             font-weight: 500;
-            font-size: 1.2rem;
-            margin: 0 0 15px 0;
-            color: rgba(255, 255, 255, 0.9);
-            letter-spacing: 0.02em;
+            letter-spacing: 0.01em;
+        }
+        .data-square .value {
+            font-size: 1.1rem;
+            font-family: 'JetBrains Mono', monospace;
+            color: #a8e0ff;
+            margin-bottom: 2px;
+        }
+        .data-square .unit {
+            font-size: 0.85rem;
+            color: #b0b0b0;
+        }
+        .manual-control-panel {
+            margin-top: 18px;
         }
         .control-button {
             background: linear-gradient(135deg, #007acc 0%, #005a9e 100%);
@@ -290,23 +323,37 @@
             </div>
 
             <div class="controls">
-                <h3>Manual Control</h3>
-                <div style="margin-bottom: 10px;">
-                    <button class="control-button" onclick="sendCommand('up')">UP</button>
-                    <button class="control-button" onclick="sendCommand('down')">Down</button>
-                    <button class="control-button" onclick="sendCommand('left')">Left</button>
-                    <button class="control-button" onclick="sendCommand('right')">Right</button>
+                <div class="data-squares-row">
+                    <div class="data-square">
+                        <h3>Position (X, Y, Z)</h3>
+                        <div id="position" class="value">0.00, 0.00, 0.00</div>
+                        <div class="unit">meters</div>
+                    </div>
+                    <div class="data-square">
+                        <h3>Velocity (X, Y, Z)</h3>
+                        <div id="velocity" class="value">0.00, 0.00, 0.00</div>
+                        <div class="unit">m/s</div>
+                    </div>
                 </div>
-                <div style="margin-bottom: 10px;">
-                    <button class="control-button" onclick="sendCommand('land')">Land</button>
-                    <button class="control-button" onclick="sendCommand('hover')">Hover</button>
-                    <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
-                </div>
-                <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
-                    <button id="camera-follow-btn" class="control-button" onclick="toggleCameraFollow()" style="background-color: #4CAF50;">Camera Follow: ON</button>
-                    <div style="margin-top: 5px; font-size: 12px; color: #888;">
-                        ON: Follow drone (manual angle adjustment possible)<br>
-                        OFF: Fixed viewpoint (complete manual control)
+                <div class="manual-control-panel">
+                    <h3>Manual Control</h3>
+                    <div style="margin-bottom: 10px;">
+                        <button class="control-button" onclick="sendCommand('up')">UP</button>
+                        <button class="control-button" onclick="sendCommand('down')">Down</button>
+                        <button class="control-button" onclick="sendCommand('left')">Left</button>
+                        <button class="control-button" onclick="sendCommand('right')">Right</button>
+                    </div>
+                    <div style="margin-bottom: 10px;">
+                        <button class="control-button" onclick="sendCommand('land')">Land</button>
+                        <button class="control-button" onclick="sendCommand('hover')">Hover</button>
+                        <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
+                    </div>
+                    <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
+                        <button id="camera-follow-btn" class="control-button" onclick="toggleCameraFollow()" style="background-color: #4CAF50;">Camera Follow: ON</button>
+                        <div style="margin-top: 5px; font-size: 12px; color: #888;">
+                            ON: Follow drone (manual angle adjustment possible)<br>
+                            OFF: Fixed viewpoint (complete manual control)
+                        </div>
                     </div>
                 </div>
             </div>
