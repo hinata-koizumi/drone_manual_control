@@ -80,11 +80,17 @@
         #threejs-container:active {
             cursor: grabbing;
         }
+        .main-content {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
         .controls {
             background-color: #333;
             padding: 15px;
             border-radius: 5px;
-            margin-top: 20px;
+            height: fit-content;
         }
         .control-button {
             background-color: #007acc;
@@ -138,42 +144,44 @@
             </div>
         </div>
 
-        <div class="visualization">
-            <h3>3D Visualization</h3>
-            <div id="threejs-container"></div>
-            <div class="info-panel">
-                <div>Mouse: Rotate view</div>
-                <div>Scroll: Zoom</div>
-                <div>Right-click: Pan</div>
+        <div class="main-content">
+            <div class="visualization">
+                <h3>3D Visualization</h3>
+                <div id="threejs-container"></div>
+                <div class="info-panel">
+                    <div>Mouse: Rotate view</div>
+                    <div>Scroll: Zoom</div>
+                    <div>Right-click: Pan</div>
+                </div>
             </div>
-        </div>
 
-        <div class="controls">
-            <h3>Manual Control</h3>
-            <div style="margin-bottom: 10px;">
-                <button class="control-button" onclick="sendCommand('take_off')">Take Off</button>
-                <button class="control-button" onclick="sendCommand('land')">Land</button>
-                <button class="control-button" onclick="sendCommand('hover')">Hover</button>
-                <button class="control-button" onclick="sendCommand('stop')">Stop</button>
-                <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
-            </div>
-            <div style="margin-bottom: 10px;">
-                <button class="control-button" onclick="sendCommand('up')">Up</button>
-                <button class="control-button" onclick="sendCommand('down')">Down</button>
-            </div>
-            <div style="margin-bottom: 10px;">
-                <button class="control-button" onclick="sendCommand('forward')">Forward</button>
-                <button class="control-button" onclick="sendCommand('backward')">Backward</button>
-            </div>
-            <div style="margin-bottom: 10px;">
-                <button class="control-button" onclick="sendCommand('left')">Left</button>
-                <button class="control-button" onclick="sendCommand('right')">Right</button>
-            </div>
-            <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
-                <button id="camera-follow-btn" class="control-button" onclick="toggleCameraFollow()" style="background-color: #4CAF50;">カメラ追従: ON</button>
-                <div style="margin-top: 5px; font-size: 12px; color: #888;">
-                    ON: ドローンを追従（手動操作で角度調整可能）<br>
-                    OFF: 固定視点（完全手動操作）
+            <div class="controls">
+                <h3>Manual Control</h3>
+                <div style="margin-bottom: 10px;">
+                    <button class="control-button" onclick="sendCommand('take_off')">Take Off</button>
+                    <button class="control-button" onclick="sendCommand('land')">Land</button>
+                    <button class="control-button" onclick="sendCommand('hover')">Hover</button>
+                    <button class="control-button" onclick="sendCommand('stop')">Stop</button>
+                    <button class="control-button" onclick="sendCommand('reset')" style="background-color: #ff9800;">Reset</button>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <button class="control-button" onclick="sendCommand('up')">Up</button>
+                    <button class="control-button" onclick="sendCommand('down')">Down</button>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <button class="control-button" onclick="sendCommand('forward')">Forward</button>
+                    <button class="control-button" onclick="sendCommand('backward')">Backward</button>
+                </div>
+                <div style="margin-bottom: 10px;">
+                    <button class="control-button" onclick="sendCommand('left')">Left</button>
+                    <button class="control-button" onclick="sendCommand('right')">Right</button>
+                </div>
+                <div style="margin-top: 15px; border-top: 1px solid #555; padding-top: 10px;">
+                    <button id="camera-follow-btn" class="control-button" onclick="toggleCameraFollow()" style="background-color: #4CAF50;">カメラ追従: ON</button>
+                    <div style="margin-top: 5px; font-size: 12px; color: #888;">
+                        ON: ドローンを追従（手動操作で角度調整可能）<br>
+                        OFF: 固定視点（完全手動操作）
+                    </div>
                 </div>
             </div>
         </div>
